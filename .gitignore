@@ -1,0 +1,18 @@
+# 依赖
+node_modules/
+__pycache__/
+*.pyc
+
+# 密钥
+.env
+.env.car
+
+# OS
+.DS_Store
+Thumbs.db
+
+# 测试音频/二进制
+*.mp3
+*.zip
+*.rar
+*.exe

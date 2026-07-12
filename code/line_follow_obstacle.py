@@ -1,0 +1,335 @@
+# -*- coding: UTF-8 -*-
+"""RASPBOT-V2 普通循迹/避障功能。
+
+四路红外循迹（PID控制）+ 超声波避障。
+不打开摄像头，不做人脸识别。
+占用：I2C、电机、循迹模块、超声波、舵机、RGB灯。
+
+运行方式：
+    python3 line_follow_obstacle.py
+
+环境变量：
+    RASPBOT_LINE_SPEED              前进速度（默认 32）
+    RASPBOT_OBSTACLE_DISTANCE_CM    触发避障距离（cm，默认 20）
+    RASPBOT_CLEAR_DISTANCE_CM       安全通过距离（cm，默认 30）
+    RASPBOT_LINE_KP/KI/KD           PID 参数
+    RASPBOT_MAX_TURN                最大转向幅度
+"""
+
+from __future__ import annotations
+
+import os
+import time
+from typing import Dict
+
+from raspbot_v2_lib import Raspbot
+from runtime_guard import RaspbotTaskLock
+from safety_control import (
+    bind_car, clear_stop_request, install_signal_handlers,
+    stop_requested, unbind_car,
+)
+
+
+# ==================== 可调参数 ====================
+LINE_SPEED = int(os.environ.get("RASPBOT_LINE_SPEED", "32"))
+SMALL_TURN_SPEED = int(os.environ.get("RASPBOT_SMALL_TURN_SPEED", "20"))
+SPIN_SPEED = int(os.environ.get("RASPBOT_SPIN_SPEED", "36"))
+BACK_SPEED = int(os.environ.get("RASPBOT_BACK_SPEED", "25"))
+OBSTACLE_DISTANCE_CM = float(os.environ.get("RASPBOT_OBSTACLE_DISTANCE_CM", "20"))
+CLEAR_DISTANCE_CM = float(os.environ.get("RASPBOT_CLEAR_DISTANCE_CM", "30"))
+
+# PID 参数
+KP = float(os.environ.get("RASPBOT_LINE_KP", "0.45"))
+KI = float(os.environ.get("RASPBOT_LINE_KI", "0.02"))
+KD = float(os.environ.get("RASPBOT_LINE_KD", "0.08"))
+MAX_TURN = int(os.environ.get("RASPBOT_MAX_TURN", "35"))
+# =================================================
+
+# PID 全局状态
+_pid_integral = 0.0
+_pid_last_error = 0.0
+_pid_lost_counter = 0
+_pid_lost_direction = 0
+_pid_last_turn = 0
+
+
+# ==================== 基础运动 ====================
+def _init_car(car: Raspbot) -> None:
+    car.Ctrl_IR_Switch(1)
+    car.Ctrl_Ulatist_Switch(1)
+    car.Ctrl_BEEP_Switch(0)
+    car.Ctrl_Servo(1, 90)
+    car.Ctrl_WQ2812_brightness_ALL(0, 0, 80)
+
+
+def _set_light(car: Raspbot, color: str) -> None:
+    colors = {
+        "red": (160, 0, 0), "blue": (0, 0, 120),
+        "green": (0, 120, 0), "magenta": (120, 0, 120),
+        "off": (0, 0, 0),
+    }
+    r, g, b = colors.get(color, (0, 0, 0))
+    car.Ctrl_WQ2812_brightness_ALL(r, g, b)
+
+
+def _run(car: Raspbot, speed: int = LINE_SPEED) -> None:
+    car.Ctrl_Car(speed, 0, 0)
+
+
+def _back(car: Raspbot, speed: int = BACK_SPEED) -> None:
+    car.Ctrl_Car(-speed, 0, 0)
+
+
+def _left(car: Raspbot, speed: int = SMALL_TURN_SPEED) -> None:
+    car.Ctrl_Car(0, -speed, 0)
+
+
+def _right(car: Raspbot, speed: int = SMALL_TURN_SPEED) -> None:
+    car.Ctrl_Car(0, speed, 0)
+
+
+def _curve(car: Raspbot, turn_amount: int, speed: int = LINE_SPEED) -> None:
+    """边前进边转向。正=右转，负=左转。"""
+    if turn_amount > 0:
+        car.Ctrl_Car(max(10, int(speed * 0.7)), 0, min(turn_amount, MAX_TURN))
+    else:
+        car.Ctrl_Car(max(10, int(speed * 0.7)), 0, max(turn_amount, -MAX_TURN))
+
+
+def _spin_left(car: Raspbot, speed: int = SPIN_SPEED) -> None:
+    car.Ctrl_Car(0, 0, -speed)
+
+
+def _spin_right(car: Raspbot, speed: int = SPIN_SPEED) -> None:
+    car.Ctrl_Car(0, 0, speed)
+
+
+def _brake(car: Raspbot, delay: float = 0.0) -> None:
+    car.emergency_stop(repeats=5, interval=0.02)
+    if delay > 0:
+        time.sleep(delay)
+
+
+def _distance_cm(car: Raspbot) -> float:
+    try:
+        return float(car.read_ultrasonic_cm())
+    except Exception:
+        return 0.0
+
+
+# ==================== PID 循迹 ====================
+def _compute_error(line: Dict[str, bool]):
+    """计算偏离黑线的误差值。
+
+    返回:
+        -1.0~1.0: 正常循迹误差（负=偏左需要右转，正=偏右需要左转）
+        None: 全白脱线
+    """
+    l1, l2 = line["left_1"], line["left_2"]
+    r1, r2 = line["right_1"], line["right_2"]
+
+    v_l1 = 1.0 if not l1 else 0.0
+    v_l2 = 1.0 if not l2 else 0.0
+    v_r1 = 1.0 if not r1 else 0.0
+    v_r2 = 1.0 if not r2 else 0.0
+
+    weighted = -1.5 * v_l1 - 0.5 * v_l2 + 0.5 * v_r1 + 1.5 * v_r2
+    total = v_l1 + v_l2 + v_r1 + v_r2
+
+    if total == 0:
+        return None  # 全白脱线
+
+    error = weighted / (total * 1.5)
+    return max(-1.0, min(1.0, error))
+
+
+def _line_follow_step(car: Raspbot, line: Dict[str, bool]) -> None:
+    """PID 循迹控制单步。"""
+    global _pid_integral, _pid_last_error, _pid_lost_counter
+    global _pid_lost_direction, _pid_last_turn
+
+    error = _compute_error(line)
+
+    # 情况1：全白脱线
+    if error is None:
+        _pid_lost_counter += 1
+        if _pid_lost_counter < 8:
+            direction = _pid_lost_direction if _pid_lost_direction != 0 else 1
+            _curve(car, direction * 15, int(LINE_SPEED * 0.6))
+        elif _pid_lost_counter < 20:
+            direction = _pid_lost_direction if _pid_lost_direction != 0 else 1
+            _curve(car, direction * MAX_TURN, int(LINE_SPEED * 0.5))
+        else:
+            if _pid_lost_direction >= 0:
+                _spin_right(car, int(SPIN_SPEED * 0.6))
+            else:
+                _spin_left(car, int(SPIN_SPEED * 0.6))
+        _pid_last_error = 0
+        return
+
+    # 情况2：重新抓线，重置脱线状态
+    if _pid_lost_counter > 0:
+        _pid_lost_counter = 0
+        _pid_integral = 0
+
+    # 记忆偏离方向
+    if error > 0.05:
+        _pid_lost_direction = 1
+    elif error < -0.05:
+        _pid_lost_direction = -1
+
+    # PID 计算
+    p_term = KP * error
+
+    if abs(error) < 0.3:
+        _pid_integral += error * 0.015
+        _pid_integral = max(-0.5, min(0.5, _pid_integral))
+    else:
+        _pid_integral = 0
+    i_term = KI * _pid_integral
+
+    d_term = KD * (error - _pid_last_error) / 0.015
+    _pid_last_error = error
+
+    turn = int((p_term + i_term + d_term) * MAX_TURN)
+    turn = max(-MAX_TURN, min(MAX_TURN, turn))
+    _pid_last_turn = turn
+
+    # 全黑（十字路口）：直行通过
+    all_black = (
+        line["left_1"] is False and line["left_2"] is False and
+        line["right_1"] is False and line["right_2"] is False
+    )
+    if all_black and abs(error) < 0.05:
+        _run(car, LINE_SPEED)
+        return
+
+    # 执行转向
+    if abs(turn) <= 3:
+        _run(car, LINE_SPEED)
+    else:
+        speed_factor = 1.0 - 0.3 * (abs(turn) / MAX_TURN)
+        current_speed = max(15, int(LINE_SPEED * speed_factor))
+        _curve(car, turn, current_speed)
+
+
+# ==================== 避障 ====================
+def _avoid_obstacle(car: Raspbot, prefer_right: bool) -> bool:
+    """遇到障碍后执行绕行。返回下一次是否优先右绕。"""
+    global _pid_lost_counter, _pid_integral, _pid_last_error
+
+    _set_light(car, "red")
+    _brake(car, 0.05)
+    _back(car, BACK_SPEED)
+    time.sleep(0.12)
+    _brake(car, 0.1)
+
+    # 右侧测距
+    car.Ctrl_Servo(1, 0)
+    time.sleep(0.55)
+    right_distance = _distance_cm(car)
+
+    # 左侧测距
+    car.Ctrl_Servo(1, 180)
+    time.sleep(0.55)
+    left_distance = _distance_cm(car)
+
+    # 正前方复位
+    car.Ctrl_Servo(1, 90)
+    time.sleep(0.35)
+    front_distance = _distance_cm(car)
+
+    print(f"避障测距：左={left_distance:.1f}, 前={front_distance:.1f}, 右={right_distance:.1f}")
+
+    left_clear = left_distance == 0 or left_distance >= CLEAR_DISTANCE_CM
+    right_clear = right_distance == 0 or right_distance >= CLEAR_DISTANCE_CM
+    front_blocked = 0 < front_distance <= OBSTACLE_DISTANCE_CM
+
+    if not left_clear and not right_clear and front_blocked:
+        print("三面较近，执行掉头。")
+        _set_light(car, "magenta")
+        _spin_right(car, SPIN_SPEED)
+        time.sleep(0.65)
+    elif right_clear and (prefer_right or not left_clear):
+        print("右侧可通，右绕避障。")
+        _set_light(car, "blue")
+        _right(car, SMALL_TURN_SPEED)
+        time.sleep(0.55)
+        _run(car, max(15, int(LINE_SPEED * 0.7)))
+        time.sleep(0.25)
+        _left(car, SMALL_TURN_SPEED)
+        time.sleep(0.70)
+    elif left_clear:
+        print("左侧可通，左绕避障。")
+        _set_light(car, "blue")
+        _left(car, SMALL_TURN_SPEED)
+        time.sleep(0.55)
+        _run(car, max(15, int(LINE_SPEED * 0.7)))
+        time.sleep(0.25)
+        _right(car, SMALL_TURN_SPEED)
+        time.sleep(0.70)
+    else:
+        print("左右测距都不理想，原地右转微调。")
+        _spin_right(car, SPIN_SPEED)
+        time.sleep(0.35)
+
+    _brake(car, 0.1)
+    _set_light(car, "green")
+
+    # 避障后重置 PID 状态
+    _pid_lost_counter = 0
+    _pid_integral = 0
+    _pid_last_error = 0
+    return not prefer_right
+
+
+# ==================== 主入口 ====================
+def run_line_follow_obstacle() -> None:
+    """启动循迹+避障模式。"""
+    with RaspbotTaskLock("line_follow_obstacle"):
+        car = Raspbot()
+        bind_car(car)
+        install_signal_handlers()
+        clear_stop_request()
+        prefer_right = True
+
+        global _pid_integral, _pid_last_error, _pid_lost_counter, _pid_lost_direction, _pid_last_turn
+        _pid_integral = 0.0
+        _pid_last_error = 0.0
+        _pid_lost_counter = 0
+        _pid_lost_direction = 0
+        _pid_last_turn = 0
+
+        try:
+            car.require_chassis()
+            print("底盘 I2C 正常：", car.backend_name())
+            _init_car(car)
+            print("进入循迹/避障模式。按 Ctrl+C 停止。")
+            print(f"参数：SPEED={LINE_SPEED}, OBSTACLE={OBSTACLE_DISTANCE_CM}cm, "
+                  f"KP={KP}, KI={KI}, KD={KD}")
+
+            while True:
+                if stop_requested():
+                    raise KeyboardInterrupt("收到停止请求。")
+
+                distance = _distance_cm(car)
+                if 0 < distance <= OBSTACLE_DISTANCE_CM:
+                    print(f"检测到障碍：{distance:.1f}cm")
+                    prefer_right = _avoid_obstacle(car, prefer_right)
+                    continue
+
+                line = car.read_line_sensors()
+                _line_follow_step(car, line)
+                time.sleep(0.015)
+
+        except KeyboardInterrupt:
+            print("用户中断循迹/避障。")
+        finally:
+            _brake(car, 0.1)
+            _set_light(car, "off")
+            unbind_car(car)
+            car.close()
+
+
+if __name__ == "__main__":
+    run_line_follow_obstacle()

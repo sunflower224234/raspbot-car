@@ -1,0 +1,497 @@
+[
+  {
+    "time": "16:01:28",
+    "message": "任务日志已清空",
+    "level": "info"
+  },
+  {
+    "time": "17:44:46",
+    "message": "用户人脸识别成功，进入控制台",
+    "level": "success"
+  },
+  {
+    "time": "17:44:53",
+    "message": "选择目标点：C",
+    "level": "info"
+  },
+  {
+    "time": "17:44:53",
+    "message": "A* 路径规划完成：S → P2 → C，总代价 5",
+    "level": "success"
+  },
+  {
+    "time": "17:44:55",
+    "message": "小车开始自动巡线，目标点 C，来源 web",
+    "level": "success"
+  },
+  {
+    "time": "17:46:28",
+    "message": "前方距离 14 cm，检测到障碍物",
+    "level": "warning"
+  },
+  {
+    "time": "17:46:28",
+    "message": "小车已停车，RGB 红灯报警，蜂鸣器报警",
+    "level": "danger"
+  },
+  {
+    "time": "17:46:29",
+    "message": "到达目标点，开始二维码校验",
+    "level": "info"
+  },
+  {
+    "time": "18:54:32",
+    "message": "系统启动，等待人脸认证",
+    "level": "info"
+  },
+  {
+    "time": "18:55:43",
+    "message": "系统启动，等待人脸认证",
+    "level": "info"
+  },
+  {
+    "time": "18:56:45",
+    "message": "系统启动，等待人脸认证",
+    "level": "info"
+  },
+  {
+    "time": "18:57:33",
+    "message": "系统启动，等待人脸认证",
+    "level": "info"
+  },
+  {
+    "time": "08:31:55",
+    "message": "用户人脸识别成功，进入控制台",
+    "level": "success"
+  },
+  {
+    "time": "08:31:57",
+    "message": "人脸识别失败：未授权用户，RGB 红灯报警，蜂鸣器报警",
+    "level": "danger"
+  },
+  {
+    "time": "08:32:01",
+    "message": "用户退出登录，系统回到认证入口",
+    "level": "info"
+  },
+  {
+    "time": "08:40:44",
+    "message": "用户人脸识别成功，进入控制台",
+    "level": "success"
+  },
+  {
+    "time": "08:41:04",
+    "message": "选择目标点：A",
+    "level": "info"
+  },
+  {
+    "time": "08:41:04",
+    "message": "A* 路径规划完成：S → P1 → A，总代价 3",
+    "level": "success"
+  },
+  {
+    "time": "08:41:07",
+    "message": "选择目标点：A",
+    "level": "info"
+  },
+  {
+    "time": "08:41:07",
+    "message": "A* 路径规划完成：S → P1 → A，总代价 3",
+    "level": "success"
+  },
+  {
+    "time": "08:41:07",
+    "message": "选择目标点：A",
+    "level": "info"
+  },
+  {
+    "time": "08:41:07",
+    "message": "A* 路径规划完成：S → P1 → A，总代价 3",
+    "level": "success"
+  },
+  {
+    "time": "08:41:09",
+    "message": "路径不可达，请重新选择目标或移除障碍节点",
+    "level": "danger"
+  },
+  {
+    "time": "08:41:14",
+    "message": "选择目标点：A",
+    "level": "info"
+  },
+  {
+    "time": "08:41:14",
+    "message": "A* 路径规划完成：S → P1 → A，总代价 3",
+    "level": "success"
+  },
+  {
+    "time": "08:41:15",
+    "message": "选择目标点：A",
+    "level": "info"
+  },
+  {
+    "time": "08:41:15",
+    "message": "A* 路径规划完成：S → P1 → A，总代价 3",
+    "level": "success"
+  },
+  {
+    "time": "08:41:17",
+    "message": "选择目标点：A",
+    "level": "info"
+  },
+  {
+    "time": "08:41:17",
+    "message": "A* 路径规划完成：S → P1 → A，总代价 3",
+    "level": "success"
+  },
+  {
+    "time": "08:41:33",
+    "message": "前方距离 14 cm，检测到障碍物",
+    "level": "warning"
+  },
+  {
+    "time": "08:41:33",
+    "message": "小车已停车，RGB 红灯报警，蜂鸣器报警",
+    "level": "danger"
+  },
+  {
+    "time": "08:41:36",
+    "message": "障碍物移除，继续任务",
+    "level": "success"
+  },
+  {
+    "time": "08:41:43",
+    "message": "用户人脸识别成功，进入控制台",
+    "level": "success"
+  },
+  {
+    "time": "08:41:45",
+    "message": "识别到二维码 A，目标校验成功",
+    "level": "success"
+  },
+  {
+    "time": "08:41:45",
+    "message": "任务完成",
+    "level": "success"
+  },
+  {
+    "time": "08:41:49",
+    "message": "到达目标点，开始二维码校验",
+    "level": "info"
+  },
+  {
+    "time": "08:41:50",
+    "message": "识别到二维码 A，目标校验成功",
+    "level": "success"
+  },
+  {
+    "time": "08:41:50",
+    "message": "任务完成",
+    "level": "success"
+  },
+  {
+    "time": "08:41:51",
+    "message": "到达目标点，开始二维码校验",
+    "level": "info"
+  },
+  {
+    "time": "08:41:52",
+    "message": "识别到二维码 A，目标校验成功",
+    "level": "success"
+  },
+  {
+    "time": "08:41:52",
+    "message": "任务完成",
+    "level": "success"
+  },
+  {
+    "time": "08:41:56",
+    "message": "前方距离 14 cm，检测到障碍物",
+    "level": "warning"
+  },
+  {
+    "time": "08:41:56",
+    "message": "小车已停车，RGB 红灯报警，蜂鸣器报警",
+    "level": "danger"
+  },
+  {
+    "time": "08:41:57",
+    "message": "到达目标点，开始二维码校验",
+    "level": "info"
+  },
+  {
+    "time": "08:41:57",
+    "message": "识别到二维码 A，目标校验成功",
+    "level": "success"
+  },
+  {
+    "time": "08:41:57",
+    "message": "任务完成",
+    "level": "success"
+  },
+  {
+    "time": "08:42:00",
+    "message": "手动控制：forward，速度 40",
+    "level": "info"
+  },
+  {
+    "time": "08:42:01",
+    "message": "手动控制：backward，速度 40",
+    "level": "info"
+  },
+  {
+    "time": "08:42:02",
+    "message": "手动控制：right，速度 40",
+    "level": "info"
+  },
+  {
+    "time": "08:42:03",
+    "message": "手动控制：left，速度 40",
+    "level": "info"
+  },
+  {
+    "time": "09:00:13",
+    "message": "系统启动，等待人脸认证",
+    "level": "info"
+  },
+  {
+    "time": "09:17:12",
+    "message": "系统启动，等待人脸认证",
+    "level": "info"
+  },
+  {
+    "time": "09:18:12",
+    "message": "系统启动，等待人脸认证",
+    "level": "info"
+  },
+  {
+    "time": "09:35:53",
+    "message": "系统启动，等待人脸认证",
+    "level": "info"
+  },
+  {
+    "time": "09:46:27",
+    "message": "系统启动，等待人脸认证",
+    "level": "info"
+  },
+  {
+    "time": "09:59:53",
+    "message": "系统启动，等待人脸认证",
+    "level": "info"
+  },
+  {
+    "time": "10:18:45",
+    "message": "系统启动，等待人脸认证",
+    "level": "info"
+  },
+  {
+    "time": "10:19:55",
+    "message": "系统启动，等待人脸认证",
+    "level": "info"
+  },
+  {
+    "time": "10:19:55",
+    "message": "用户人脸识别成功，进入控制台",
+    "level": "success"
+  },
+  {
+    "time": "10:19:56",
+    "message": "选择目标点：B",
+    "level": "info"
+  },
+  {
+    "time": "10:19:56",
+    "message": "A* 路径规划完成：S → P1 → P3 → B，总代价 4",
+    "level": "success"
+  },
+  {
+    "time": "10:19:56",
+    "message": "小车开始自动巡线，目标点 B，来源 test",
+    "level": "success"
+  },
+  {
+    "time": "10:19:56",
+    "message": "前方距离 14 cm，检测到障碍物",
+    "level": "warning"
+  },
+  {
+    "time": "10:19:56",
+    "message": "小车已停车，RGB 红灯报警，蜂鸣器报警",
+    "level": "danger"
+  },
+  {
+    "time": "10:19:56",
+    "message": "到达目标点，开始二维码校验",
+    "level": "info"
+  },
+  {
+    "time": "10:41:55",
+    "message": "系统启动，等待人脸认证",
+    "level": "info"
+  },
+  {
+    "time": "10:42:16",
+    "message": "用户人脸识别成功，进入控制台",
+    "level": "success"
+  },
+  {
+    "time": "10:42:28",
+    "message": "用户人脸识别成功，进入控制台",
+    "level": "success"
+  },
+  {
+    "time": "17:51:34",
+    "message": "系统启动，等待人脸认证",
+    "level": "info"
+  },
+  {
+    "time": "17:51:34",
+    "message": "用户人脸识别成功，进入控制台",
+    "level": "success"
+  },
+  {
+    "time": "17:52:23",
+    "message": "系统启动，等待人脸认证",
+    "level": "info"
+  },
+  {
+    "time": "17:52:25",
+    "message": "用户人脸识别成功，进入控制台",
+    "level": "success"
+  },
+  {
+    "time": "17:52:31",
+    "message": "手动控制：forward，速度 40",
+    "level": "info"
+  },
+  {
+    "time": "19:37:29",
+    "message": "系统启动，等待人脸认证",
+    "level": "info"
+  },
+  {
+    "time": "19:37:51",
+    "message": "用户人脸识别成功，进入控制台",
+    "level": "success"
+  },
+  {
+    "time": "19:38:18",
+    "message": "用户人脸识别成功，进入控制台",
+    "level": "success"
+  },
+  {
+    "time": "19:38:18",
+    "message": "选择目标点：B",
+    "level": "info"
+  },
+  {
+    "time": "19:38:18",
+    "message": "A* 路径规划完成：S → P1 → P3 → B，总代价 4",
+    "level": "success"
+  },
+  {
+    "time": "19:38:18",
+    "message": "小车开始自动巡线，目标点 B，来源 cli",
+    "level": "success"
+  },
+  {
+    "time": "19:38:40",
+    "message": "任务已取消",
+    "level": "info"
+  },
+  {
+    "time": "19:38:42",
+    "message": "任务已取消",
+    "level": "info"
+  },
+  {
+    "time": "19:38:43",
+    "message": "小车开始自动巡线，目标点 B，来源 web",
+    "level": "success"
+  },
+  {
+    "time": "19:38:45",
+    "message": "任务已暂停",
+    "level": "info"
+  },
+  {
+    "time": "19:43:36",
+    "message": "系统启动，等待人脸认证",
+    "level": "info"
+  },
+  {
+    "time": "19:51:53",
+    "message": "系统启动，等待人脸认证",
+    "level": "info"
+  },
+  {
+    "time": "19:52:16",
+    "message": "用户人脸识别成功，进入控制台",
+    "level": "success"
+  },
+  {
+    "time": "19:53:11",
+    "message": "用户人脸识别成功，进入控制台",
+    "level": "success"
+  },
+  {
+    "time": "19:53:17",
+    "message": "选择目标点：B",
+    "level": "info"
+  },
+  {
+    "time": "19:53:17",
+    "message": "A* 路径规划完成：S → P1 → P3 → B，总代价 4",
+    "level": "success"
+  },
+  {
+    "time": "19:53:17",
+    "message": "小车开始自动巡线，目标点 B，来源 web",
+    "level": "success"
+  },
+  {
+    "time": "19:59:58",
+    "message": "系统启动，等待人脸认证",
+    "level": "info"
+  },
+  {
+    "time": "20:00:21",
+    "message": "用户人脸识别成功，进入控制台",
+    "level": "success"
+  },
+  {
+    "time": "20:00:46",
+    "message": "用户人脸识别成功，进入控制台",
+    "level": "success"
+  },
+  {
+    "time": "20:00:47",
+    "message": "选择目标点：B",
+    "level": "info"
+  },
+  {
+    "time": "20:00:47",
+    "message": "A* 路径规划完成：S → P1 → P3 → B，总代价 4",
+    "level": "success"
+  },
+  {
+    "time": "20:00:47",
+    "message": "小车开始自动巡线，目标点 B，来源 web",
+    "level": "success"
+  },
+  {
+    "time": "20:02:01",
+    "message": "任务已取消",
+    "level": "info"
+  },
+  {
+    "time": "20:17:09",
+    "message": "系统启动，等待人脸认证",
+    "level": "info"
+  },
+  {
+    "time": "20:39:39",
+    "message": "系统启动，等待人脸认证",
+    "level": "info"
+  }
+]

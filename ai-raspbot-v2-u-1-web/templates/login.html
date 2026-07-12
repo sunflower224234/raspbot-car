@@ -1,0 +1,101 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>RASPBOT-V2 身份认证</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body class="login-body">
+  <main class="login-shell">
+    <section class="login-visual" aria-label="摄像头身份认证">
+      <div class="camera-frame login-camera">
+        <div class="scan-line"></div>
+        <div class="face-target">
+          <span></span>
+        </div>
+        <div class="camera-caption">
+          <strong>身份核验</strong>
+          <span>人脸识别权限入口</span>
+        </div>
+      </div>
+    </section>
+
+    <section class="login-panel">
+      <p class="eyebrow">RASPBOT-V2 多模态视觉 AI 小车控制台</p>
+      <h1>身份认证</h1>
+      <p class="lead">通过人脸识别进入统一调度中心，未授权用户无法启动任务控制。</p>
+
+      <div class="auth-status" id="authStatus">
+        <span class="status-dot neutral"></span>
+        <span id="authText">未识别</span>
+      </div>
+
+      <div class="button-row">
+        <button class="primary-btn" id="startFace">开始人脸识别</button>
+        <button class="text-btn danger-text" id="failFace">模拟识别失败</button>
+      </div>
+
+      <ul class="login-notes">
+        <li>人脸识别通过后进入控制台</li>
+        <li>未认证状态无法启动任务</li>
+        <li>认证失败触发红灯与蜂鸣器报警</li>
+      </ul>
+
+      <div class="feedback-strip">
+        <div>
+          <span>RGB</span>
+          <strong id="rgbState">蓝色待机</strong>
+        </div>
+        <div>
+          <span>蜂鸣器</span>
+          <strong id="buzzState">关闭</strong>
+        </div>
+        <div>
+          <span>入口策略</span>
+          <strong>认证后进入控制台</strong>
+        </div>
+      </div>
+    </section>
+  </main>
+  <script>
+    const authStatus = document.getElementById("authStatus");
+    const authText = document.getElementById("authText");
+    const rgbState = document.getElementById("rgbState");
+    const buzzState = document.getElementById("buzzState");
+
+    async function faceAuth(forceFail = false) {
+      authStatus.className = "auth-status";
+      authStatus.innerHTML = '<span class="status-dot warning"></span><span id="authText">识别中……</span>';
+      try {
+        const res = await fetch("/api/auth/face", {
+          method: "POST",
+          headers: {"Content-Type": "application/json"},
+          body: JSON.stringify({force_fail: forceFail})
+        });
+        const data = await res.json();
+        if (data.success) {
+          authStatus.className = "auth-status success";
+          authStatus.innerHTML = '<span class="status-dot success-dot"></span><span>识别成功，即将进入控制台</span>';
+          rgbState.textContent = "绿色通过";
+          buzzState.textContent = "提示音";
+          setTimeout(() => window.location.href = "/dashboard", 900);
+        } else {
+          authStatus.className = "auth-status danger";
+          authStatus.innerHTML = '<span class="status-dot danger-dot"></span><span>未授权用户</span>';
+          rgbState.textContent = "红色报警";
+          buzzState.textContent = "报警";
+        }
+      } catch (error) {
+        authStatus.className = "auth-status danger";
+        authStatus.innerHTML = '<span class="status-dot danger-dot"></span><span>后端连接失败，请先启动 Flask 服务</span>';
+        rgbState.textContent = "红色报警";
+        buzzState.textContent = "报警";
+      }
+    }
+
+    document.getElementById("startFace").addEventListener("click", () => faceAuth(false));
+    document.getElementById("failFace").addEventListener("click", () => faceAuth(true));
+  </script>
+</body>
+</html>

@@ -1,0 +1,25 @@
+# ========================
+# RASPBOT-V2 陪伴型智能家居小车
+# 完整依赖列表
+# ========================
+
+# ----- Web 控制台（必需）-----
+Flask>=2.2
+
+# ----- 基础依赖（必需）-----
+opencv-python>=4.5
+requests>=2.25
+smbus2>=0.4
+
+# ----- 语音识别（可选）-----
+# 腾讯云 SDK（在线 ASR + TTS，推荐）
+tencentcloud-sdk-python>=3.0
+
+# Google Web Speech（在线 ASR，免费无需 API Key）
+SpeechRecognition>=3.8
+pyaudio>=0.2
+
+# ----- 系统工具（树莓派上安装）-----
+# sudo apt install -y i2c-tools python3-smbus
+# sudo apt install -y espeak-ng mpg123 mplayer arecord aplay
+# sudo apt install -y libatlas-base-dev libopenjp2-7 libtiff5

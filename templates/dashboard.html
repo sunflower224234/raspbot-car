@@ -1,0 +1,103 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>RASPBOT-V2 控制台</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body data-module="overview">
+  <header class="app-topbar">
+    <div class="brand">
+      <span>智送小管家</span>
+      <strong>RASPBOT-V2 多模态视觉 AI 小车控制台</strong>
+    </div>
+    <div class="top-status">
+      <span id="topModeText" class="status-chip strong">等待人脸认证</span>
+      <span id="userBadge" class="status-chip">未认证</span>
+      <span id="carBadge" class="status-chip">小车状态</span>
+      <span id="targetBadge" class="status-chip">目标：无</span>
+      <button class="emergency-btn" id="emergencyStop">急停</button>
+    </div>
+  </header>
+
+  <main>
+    <section class="console-screen">
+      <div class="console-shell">
+        <nav class="module-tabs" aria-label="控制台模块">
+          <button class="active" data-module="overview">总览</button>
+          <button data-module="auth">认证</button>
+          <button data-module="task">任务</button>
+          <button data-module="path">路径</button>
+          <button data-module="run">巡线</button>
+          <button data-module="safety">避障</button>
+          <button data-module="vision">视觉</button>
+          <button data-module="voice">语音</button>
+          <button data-module="arrival">校验</button>
+          <button data-module="feedback">反馈</button>
+          <button data-module="manual">手动</button>
+          <button data-module="logs">日志</button>
+        </nav>
+
+        <div class="console-grid">
+          <section class="work-panel">
+            <div class="module-header">
+              <p id="moduleEyebrow">系统总览</p>
+              <h2 id="moduleTitle">任务调度总览</h2>
+              <span id="moduleDesc">查看 RASPBOT-V2 小车从认证到任务完成的完整闭环。</span>
+            </div>
+            <div id="moduleStage"></div>
+          </section>
+
+          <section class="live-grid">
+            <section class="live-card safety-card">
+              <div class="card-head">
+                <strong>当前任务与安全状态</strong>
+                <span id="strategy">正常行驶</span>
+              </div>
+              <div class="distance-readout">
+                <strong id="distance"><span class="distance-number">--</span><span class="distance-unit">cm</span></strong>
+                <div class="meter-bar"><i id="distanceBar"></i></div>
+              </div>
+              <div class="mini-grid">
+                <div><span>障碍物</span><b id="obstacle">安全</b></div>
+                <div><span>循迹</span><b id="lineBits">0 1 1 0</b></div>
+                <div><span>巡线</span><b id="lineState">居中</b></div>
+                <div id="feedbackState" class="mini-feedback">
+                  <span>声光</span>
+                  <p><b>灯光</b><strong>蓝灯</strong></p>
+                  <p><b>蜂鸣</b><strong>关闭</strong></p>
+                </div>
+              </div>
+            </section>
+
+            <section class="live-card route-card">
+              <div class="card-head">
+                <strong>A* 路径</strong>
+                <span id="pathStatus">未规划</span>
+              </div>
+              <div class="route-map">
+                <svg viewBox="0 0 100 70" aria-label="A* 路径地图" data-map-svg>
+                  <line x1="10" y1="48" x2="28" y2="22"></line>
+                  <line x1="10" y1="48" x2="28" y2="58"></line>
+                  <line x1="28" y1="22" x2="56" y2="38"></line>
+                  <line x1="28" y1="58" x2="56" y2="38"></line>
+                  <line x1="28" y1="22" x2="72" y2="14"></line>
+                  <line x1="56" y1="38" x2="86" y2="38"></line>
+                  <line x1="56" y1="38" x2="78" y2="60"></line>
+                  <polyline id="activePath" data-path-line points=""></polyline>
+                  <g id="mapNodes" data-map-nodes></g>
+                </svg>
+              </div>
+              <p id="routeText" class="route-pill">尚未生成路径</p>
+            </section>
+
+          </section>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <script src="{{ url_for('static', filename='main.js') }}"></script>
+</body>
+</html>
