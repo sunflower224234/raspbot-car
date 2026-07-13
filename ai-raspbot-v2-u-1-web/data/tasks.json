@@ -493,5 +493,20 @@
     "time": "20:39:39",
     "message": "系统启动，等待人脸认证",
     "level": "info"
+  },
+  {
+    "time": "09:43:22",
+    "message": "系统启动，等待人脸认证",
+    "level": "info"
+  },
+  {
+    "time": "09:48:02",
+    "message": "用户人脸识别成功，进入控制台",
+    "level": "success"
+  },
+  {
+    "time": "09:48:03",
+    "message": "用户人脸识别成功，进入控制台",
+    "level": "success"
   }
 ]

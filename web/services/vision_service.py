@@ -48,48 +48,14 @@ class VisionService:
                 "message": "人脸识别成功（模拟）"}
 
     def qr_scan(self, target: Optional[str] = None) -> dict:
-        """二维码扫描识别目标点。"""
+        """二维码扫描 —— 已迁移至车载摄像头（robot_controller.qr_scan_car）。
+        此方法保留作为 simulated 模式的兜底。"""
         self.vision_mode = "二维码识别"
-
-        if self.mode_name == "real":
-            try:
-                import cv2
-                camera_index = int(os.environ.get("RASPBOT_CAMERA_INDEX", "0"))
-                camera = cv2.VideoCapture(camera_index)
-                camera.set(cv2.CAP_PROP_FRAME_WIDTH, 320)
-                camera.set(cv2.CAP_PROP_FRAME_HEIGHT, 240)
-                if not camera.isOpened():
-                    camera.release()
-                    return {"success": False, "qr_value": None,
-                            "message": "摄像头打开失败"}
-                try:
-                    qr_detector = cv2.QRCodeDetector()
-                    import time
-                    deadline = time.time() + 10
-                    while time.time() < deadline:
-                        ret, frame = camera.read()
-                        if not ret:
-                            time.sleep(0.1)
-                            continue
-                        data, points, _ = qr_detector.detectAndDecode(frame)
-                        if points is not None and data:
-                            self.result = f"识别到二维码 {data}"
-                            return {"success": True, "qr_value": data,
-                                    "message": f"识别到目标点 {data}"}
-                        time.sleep(0.05)
-                    return {"success": False, "qr_value": None,
-                            "message": "超时未识别到二维码"}
-                finally:
-                    camera.release()
-            except Exception as exc:
-                return {"success": False, "qr_value": None,
-                        "message": f"二维码识别异常：{exc}"}
-
-        # simulated
+        # simulated 兜底
         qr_value = target or "B"
         self.result = f"识别到二维码 {qr_value}"
         return {"success": True, "qr_value": qr_value,
-                "message": f"识别到目标点 {qr_value}"}
+                "message": f"识别到目标点 {qr_value}（模拟）"}
 
     def gesture_start(self) -> dict:
         """手势识别（预留接口）。"""

@@ -1,9 +1,18 @@
 from __future__ import annotations
 
 import os
+import sys
+
+# 确保所有子目录在导入路径中
+_HERE = os.path.dirname(os.path.abspath(__file__))
+_ROOT = os.path.dirname(_HERE)
+sys.path.insert(0, _HERE)                              # web/
+sys.path.insert(0, os.path.join(_HERE, "services"))     # web/services/
+sys.path.insert(0, os.path.join(_ROOT, "car"))          # car/ (speech_output)
+sys.path.insert(0, os.path.join(_ROOT, "scripts"))      # scripts/ (face_recognition_only)
 
 from dotenv import load_dotenv
-load_dotenv()
+load_dotenv(os.path.join(_HERE, ".env"))
 
 from flask import Flask, Response, jsonify, redirect, render_template, request, url_for
 
@@ -100,6 +109,7 @@ def api_task_cancel():
 
 @app.post("/api/vision/qr_scan")
 def api_qr_scan():
+    """二维码到达校验（使用车载摄像头）。"""
     return jsonify(manager.qr_scan())
 
 
@@ -153,11 +163,12 @@ def _process_voice_text(text: str):
             result["weather"] = weather_text
             result["message"] = f"天气播报：{weather_text}"
             manager.logs.append("天气播报已执行", "success")
-            speaker.speak(weather_text, wait=False)
+            # 让小车播报天气
+            manager.robot.send_speak(weather_text)
         except Exception as exc:
             result["message"] = f"天气查询失败：{exc}"
             manager.logs.append(f"天气查询失败：{exc}", "danger")
-            speaker.speak("天气查询失败", wait=False)
+            manager.robot.send_speak("天气查询失败")
 
     elif action == "stop":
         estop = manager.emergency_stop()
@@ -309,6 +320,62 @@ def api_voice_simulate():
     return jsonify(result)
 
 
+@app.post("/api/car/voice/listen")
+def api_car_voice_listen():
+    """触发小车端 USB 麦克风录音识别，并执行匹配到的命令。"""
+    payload = request.get_json(silent=True) or {}
+    duration = float(payload.get("duration", 3.0))
+
+    manager.logs.append("🎤 正在通过小车麦克风录音...", "info")
+
+    # 小车端录音 + ASR + 命令匹配
+    car_result = manager.robot.voice_listen(duration=duration, execute=False)
+
+    if not car_result.get("success"):
+        return jsonify(car_result)
+
+    text = car_result.get("text", "").strip()
+    if not text:
+        manager.logs.append("小车麦克风未识别到语音", "warning")
+        return jsonify({**car_result, "status": manager.status()})
+
+    manager.logs.append(f"小车识别文本：「{text}」", "info")
+
+    # 如果有匹配到的命令，走和浏览器录音一样的处理逻辑
+    cmd = car_result.get("command")
+    if cmd:
+        manager.logs.append(f"匹配命令：{cmd}（action={car_result.get('action')}）", "success")
+
+    # 走统一的命令处理
+    result = _process_voice_text(text)
+    return jsonify(result)
+
+
+@app.post("/api/car/voice/wake/start")
+def api_car_wake_start():
+    """启动小车端 Siri 模式：常态监听唤醒词。"""
+    result = manager.robot.wake_start()
+    if result.get("success"):
+        manager.logs.append("🔊 小车唤醒监听已启动", "success")
+    return jsonify({**result, "status": manager.status()})
+
+
+@app.post("/api/car/voice/wake/stop")
+def api_car_wake_stop():
+    """停止小车端唤醒词监听。"""
+    result = manager.robot.wake_stop()
+    if result.get("success"):
+        manager.logs.append("🔇 小车唤醒监听已停止", "info")
+    return jsonify({**result, "status": manager.status()})
+
+
+@app.get("/api/car/voice/wake/status")
+def api_car_wake_status():
+    """查询小车唤醒监听状态。"""
+    result = manager.robot.wake_status()
+    return jsonify({**result, "status": manager.status()})
+
+
 @app.post("/api/gesture/start")
 def api_gesture_start():
     return jsonify(manager.gesture_start())
@@ -399,6 +466,48 @@ def api_car_resume():
     """直接恢复循迹。"""
     result = manager.robot._remote_post("/api/task/resume", {})
     manager.logs.append("直连恢复循迹", "info")
+    return jsonify({**result, "status": manager.status()})
+
+
+# ======================== 小车端人脸识别 ========================
+@app.post("/api/car/face/recognize")
+def api_car_face_recognize():
+    """触发小车端人脸识别（摄像头在小车上，识别更准确）。"""
+    payload = request.get_json(silent=True) or {}
+    timeout = float(payload.get("timeout", 15))
+    result = manager.robot.face_recognize(timeout=timeout)
+    manager.logs.append(
+        f"小车端人脸识别：{'成功' if result.get('success') else '失败'} — {result.get('message', '')}",
+        "success" if result.get("success") else "danger"
+    )
+    return jsonify({**result, "status": manager.status()})
+
+
+@app.get("/api/car/face/status")
+def api_car_face_status():
+    """查询小车端人脸解锁状态。"""
+    result = manager.robot.face_status()
+    return jsonify({**result, "status": manager.status()})
+
+
+@app.post("/api/car/qr_scan")
+def api_car_qr_scan():
+    """使用车载摄像头扫描二维码（二维码在地面上，小车摄像头更合适）。"""
+    payload = request.get_json(silent=True) or {}
+    timeout = float(payload.get("timeout", 10))
+    result = manager.robot.qr_scan_car(timeout=timeout)
+    manager.logs.append(
+        f"车载 QR 扫描：{'识别到 ' + result.get('qr_value', '') if result.get('success') else '失败'} — {result.get('message', '')}",
+        "success" if result.get("success") else "warning"
+    )
+    # 如果扫描结果与目标一致，自动完成校验
+    qr_value = result.get("qr_value")
+    if result.get("success") and qr_value and qr_value == manager.state.target:
+        manager.state.mode = "DONE"
+        manager.state.task_status = "done"
+        manager.state.message = f"目标点 {qr_value} 校验成功，任务完成"
+        manager.feedback.done()
+        manager.logs.append(f"目标校验成功：{qr_value}，任务完成", "success")
     return jsonify({**result, "status": manager.status()})
 
 

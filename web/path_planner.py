@@ -156,6 +156,78 @@ def _graph_astar(start: str, target: str, blocked: Optional[Iterable[str]] = Non
             "message": "路径不可达，请重新选择目标或移除障碍节点"}
 
 
+# ======================== 路径导航指令 ========================
+def get_path_directions(path: List[str]) -> List[dict]:
+    """将路径节点序列转换为路口导航指令。
+
+    返回列表，每个元素对应一个路径节点：
+        {"node": "P1", "action": "straight"|"left"|"right"|"stop"}
+    - 起点 S 固定为 "straight"
+    - 终点固定为 "stop"
+    - 中间节点根据前驱-当前-后继的位置关系计算转弯方向
+    """
+    import math
+
+    if len(path) < 2:
+        return []
+
+    directions = []
+
+    for i, node in enumerate(path):
+        if i == 0:
+            # 起点：直行出发
+            directions.append({"node": node, "action": "straight"})
+        elif i == len(path) - 1:
+            # 终点：停车
+            directions.append({"node": node, "action": "stop"})
+        else:
+            prev = path[i - 1]
+            nxt = path[i + 1]
+            # 计算转向角
+            action = _compute_turn(prev, node, nxt)
+            directions.append({"node": node, "action": action})
+
+    return directions
+
+
+def _compute_turn(from_node: str, at_node: str, to_node: str) -> str:
+    """根据三个节点的坐标计算转弯方向。"""
+    import math
+
+    c_from = COORDS.get(from_node)
+    c_at = COORDS.get(at_node)
+    c_to = COORDS.get(to_node)
+
+    if not all([c_from, c_at, c_to]):
+        return "straight"
+
+    # 进入方向：from → at
+    entry_angle = math.atan2(
+        c_at["y"] - c_from["y"],
+        c_at["x"] - c_from["x"]
+    )
+    # 离开方向：at → to
+    exit_angle = math.atan2(
+        c_to["y"] - c_at["y"],
+        c_to["x"] - c_at["x"]
+    )
+
+    # 转向角（弧度转角度）
+    turn_deg = math.degrees(exit_angle - entry_angle)
+    # 归一化到 -180 ~ 180
+    while turn_deg > 180:
+        turn_deg -= 360
+    while turn_deg < -180:
+        turn_deg += 360
+
+    if abs(turn_deg) < 45:
+        return "straight"
+    elif turn_deg > 45:
+        return "right"
+    else:
+        return "left"
+
+
 # ======================== 统一入口 ========================
 def astar(start: str, target: str, blocked: Optional[Iterable[str]] = None,
           mode: str = "auto") -> dict:

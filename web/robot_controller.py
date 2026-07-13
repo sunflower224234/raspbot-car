@@ -36,9 +36,9 @@ class RobotController:
         elif self.mode == "remote":
             self._init_remote()
         else:
-            self.connected = True
+            self.connected = False
             self.hardware_note = (
-                "SIMULATED 模式：当前仅模拟小车动作。"
+                "SIMULATED 模式：未连接真实小车。"
                 "设置 RASPBOT_HARDWARE_MODE=remote 并配置 RASPBOT_CAR_URL 连接真实小车。"
             )
 
@@ -124,8 +124,9 @@ class RobotController:
                 return self.emergency_stop()
             elif action == "line_follow":
                 target = getattr(self, "_task_target", "B")
+                path = getattr(self, "_task_path", None)
                 result = self._remote_post("/api/task/line_follow",
-                                           {"target": target, "speed": speed})
+                                           {"target": target, "speed": speed, "path": path})
             else:
                 result = self._remote_post("/api/control/move",
                                            {"action": action, "speed": speed})
@@ -220,9 +221,10 @@ class RobotController:
             except Exception:
                 pass
 
-    def set_task_target(self, target: str) -> None:
-        """设置远程循迹目标点。"""
+    def set_task_target(self, target: str, path: list = None) -> None:
+        """设置远程循迹目标点和路径。"""
         self._task_target = target
+        self._task_path = path
 
     def send_speak(self, text: str) -> dict:
         """让小车播报语音。"""
@@ -241,3 +243,124 @@ class RobotController:
         except Exception:
             pass
         return {}
+
+    # ---- 人脸识别代理（remote 模式） ----
+    def face_recognize(self, timeout: float = 15) -> dict:
+        """触发小车端人脸识别。"""
+        if self.mode == "remote":
+            return self._remote_post("/api/face/recognize",
+                                    {"timeout": timeout}, timeout=timeout + 10)
+        # real 模式：直接调用本地人脸识别
+        if self.mode == "real":
+            try:
+                from face_recognition_only import run_face_recognition_only
+                ok = run_face_recognition_only(timeout_seconds=timeout)
+                if ok:
+                    return {"success": True, "user": "authorized_user",
+                            "message": "人脸识别成功", "face_unlocked": True}
+                else:
+                    return {"success": False,
+                            "message": "人脸识别失败：未匹配到授权用户",
+                            "face_unlocked": False}
+            except Exception as exc:
+                return {"success": False,
+                        "message": f"人脸识别模块异常：{exc}"}
+        # simulated 模式
+        return {"success": True, "user": "authorized_user",
+                "message": "人脸识别成功（模拟）", "face_unlocked": True}
+
+    def face_status(self) -> dict:
+        """查询小车端人脸解锁状态。"""
+        if self.mode == "remote":
+            try:
+                resp = requests.get(f"{self.car_url}/api/face/status", timeout=3)
+                if resp.ok:
+                    return resp.json()
+            except Exception:
+                pass
+            return {"face_required": False, "face_unlocked": False}
+        # real/simulated 模式
+        return {"face_required": False, "face_unlocked": True}
+
+    def face_lock(self) -> dict:
+        """重新锁定小车（需要重新人脸识别）。"""
+        if self.mode == "remote":
+            return self._remote_post("/api/face/lock", timeout=5)
+        return {"success": True, "message": "人脸锁已重置（本地模式）",
+                "face_unlocked": False}
+
+    def qr_scan_car(self, timeout: float = 10) -> dict:
+        """使用车载摄像头扫描二维码。"""
+        if self.mode == "remote":
+            return self._remote_post("/api/vision/qr_scan",
+                                    {"timeout": timeout}, timeout=timeout + 10)
+        # real 模式：本地摄像头
+        if self.mode == "real":
+            try:
+                import cv2
+                import time as _time
+                camera_index = int(os.environ.get("RASPBOT_CAMERA_INDEX", "0"))
+                camera = cv2.VideoCapture(camera_index)
+                camera.set(cv2.CAP_PROP_FRAME_WIDTH, 640)
+                camera.set(cv2.CAP_PROP_FRAME_HEIGHT, 480)
+                if not camera.isOpened():
+                    camera.release()
+                    return {"success": False, "qr_value": None,
+                            "message": "摄像头打开失败"}
+                try:
+                    qr_detector = cv2.QRCodeDetector()
+                    deadline = _time.time() + timeout
+                    while _time.time() < deadline:
+                        ret, frame = camera.read()
+                        if not ret:
+                            _time.sleep(0.05)
+                            continue
+                        data, points, _ = qr_detector.detectAndDecode(frame)
+                        if points is not None and data:
+                            return {"success": True, "qr_value": data,
+                                    "message": f"识别到二维码：{data}"}
+                        _time.sleep(0.05)
+                    return {"success": False, "qr_value": None,
+                            "message": f"超时未识别到二维码"}
+                finally:
+                    camera.release()
+            except Exception as exc:
+                return {"success": False, "qr_value": None,
+                        "message": f"二维码扫描异常：{exc}"}
+        # simulated 模式
+        return {"success": True, "qr_value": "B",
+                "message": "二维码扫描完成（模拟）"}
+
+    def voice_listen(self, duration: float = 3.0, execute: bool = True) -> dict:
+        """触发小车端麦克风录音并识别语音命令。"""
+        if self.mode == "remote":
+            return self._remote_post("/api/voice/listen",
+                                     {"duration": duration, "execute": execute},
+                                     timeout=int(duration) + 15)
+        # simulated 模式
+        return {"success": True, "text": "", "command": None, "action": None,
+                "message": "模拟模式不支持小车端语音，请使用浏览器录音"}
+
+    def wake_start(self) -> dict:
+        """启动小车端唤醒词后台监听（Siri 模式）。"""
+        if self.mode == "remote":
+            return self._remote_post("/api/voice/wake/start", {}, timeout=5)
+        return {"success": False, "message": "仅 remote 模式支持唤醒词监听"}
+
+    def wake_stop(self) -> dict:
+        """停止小车端唤醒词监听。"""
+        if self.mode == "remote":
+            return self._remote_post("/api/voice/wake/stop", {}, timeout=5)
+        return {"success": True, "message": "已停止"}
+
+    def wake_status(self) -> dict:
+        """查询小车端唤醒监听状态。"""
+        if self.mode == "remote":
+            try:
+                resp = requests.get(f"{self.car_url}/api/voice/wake/status", timeout=3)
+                if resp.ok:
+                    return resp.json()
+            except Exception:
+                pass
+            return {"running": False, "status": "unknown"}
+        return {"running": False, "status": "stopped"}

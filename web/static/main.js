@@ -29,7 +29,7 @@ let statusCache = {};
 const defaultStatus = {
   auth: false,
   user: "未认证",
-  car_connected: true,
+  car_connected: false,
   mode: "AUTH_REQUIRED",
   mode_text: "等待人脸认证",
   target: null,
@@ -39,17 +39,26 @@ const defaultStatus = {
   cost: null,
   blocked: [],
   path_status: "未规划",
-  distance_cm: 42,
+  distance_cm: 0,
   obstacle: false,
-  line_bits: [0, 1, 1, 0],
-  line_state: "CENTER",
-  strategy: "正常行驶",
+  line_bits: [0, 0, 0, 0],
+  line_state: "未连接",
+  strategy: "等待连接小车",
+  ir_obstacle: 255,
+  collision: false,
   rgb_color: "blue",
   buzzer: "off",
   vision_mode: "人脸识别",
   vision_result: "等待识别",
+  face_required: false,
+  face_unlocked: false,
+  path_nodes: [],
+  path_index: 0,
+  path_done: false,
   voice_listening: false,
   voice_command: "未启动",
+  wake_running: false,
+  wake_status: "stopped",
   logs: [],
 };
 
@@ -278,7 +287,7 @@ function nextSuggestion(s) {
 function commandBlockReason(command, s) {
   if (!backendOnline) return "后端连接失败，控制按钮已禁用";
   // 直连控制命令无需认证
-  if (["face", "faceFail", "logout", "clearLogs", "carLineFollow", "carAvoid", "carStop", "carPause", "carResume"].includes(command)) return "";
+  if (["face", "faceFail", "logout", "clearLogs", "carLineFollow", "carAvoid", "carStop", "carPause", "carResume", "carFaceRecognize", "carQrScan"].includes(command)) return "";
   if (!s.auth) return "请先完成人脸识别认证";
   if (["plan", "replan", "start", "voice"].includes(command) && !currentTarget(s)) return "请先选择目标点";
   if (command === "qr" && s.mode !== "ARRIVAL_CHECK" && !modeIsDone(s)) {
@@ -564,10 +573,11 @@ function renderModuleBody(name, s) {
       </div>
       <div class="module-summary">
         <section class="summary-box"><span>当前模式</span><strong id="runModeText">${modeLabel(s)}</strong></section>
-        <section class="summary-box"><span>当前节点</span><strong id="currentNodeText">S</strong></section>
-        <section class="summary-box"><span>下一节点</span><strong id="nextNodeText">-</strong></section>
-        <section class="summary-box"><span>任务进度</span><strong id="progressText">0%</strong></section>
+        <section class="summary-box"><span>当前节点</span><strong id="currentNodeText">${s.path_nodes[s.path_index] || 'S'}</strong></section>
+        <section class="summary-box"><span>下一节点</span><strong id="nextNodeText">${s.path_nodes[s.path_index + 1] || '—'}</strong></section>
+        <section class="summary-box"><span>任务进度</span><strong id="progressText">${s.path_nodes.length ? Math.round(s.path_index / (s.path_nodes.length - 1) * 100) : 0}%</strong></section>
         <section class="summary-box wide-summary"><span>当前路径</span><strong id="runPathText">${route}</strong></section>
+        <section class="summary-box"><span>到达状态</span><strong id="runDoneText">${s.path_done ? '✅ 已到达' : '行进中'}</strong></section>
         <section class="summary-box"><span>循迹传感器</span><strong id="runLineBitsText">${s.line_bits.join(" ")}</strong></section>
       </div>`,
     safety: `
@@ -583,8 +593,17 @@ function renderModuleBody(name, s) {
         <button class="warning-btn" data-command="obstacle">模拟遇障停车</button>
         <button class="success-btn" data-command="resume">障碍移除继续</button>
       </div>
+      <div class="action-row">
+        <label style="font-size:0.8rem;color:#888;">超时(秒):</label>
+        <input type="range" id="faceTimeoutRange" min="5" max="60" value="15" step="5" style="flex:1;">
+        <span id="faceTimeoutVal" style="font-size:0.8rem;min-width:2rem;">15</span>
+        <button class="primary-btn" data-command="carFaceRecognize">🔓 小车人脸识别</button>
+      </div>
       <div class="module-summary">
         <section class="summary-box"><span>障碍物</span><strong id="safetyObstacleText">${s.obstacle ? "检测到障碍物" : "安全"}</strong></section>
+        <section class="summary-box"><span>红外避障</span><strong id="safetyIrText">${s.ir_obstacle === 255 ? "无障碍" : s.ir_obstacle}</strong></section>
+        <section class="summary-box"><span>碰撞检测</span><strong id="safetyCollisionText">${s.collision ? "⚠ 碰撞" : "正常"}</strong></section>
+        <section class="summary-box"><span>人脸锁</span><strong id="safetyFaceLockText">${s.face_required ? (s.face_unlocked ? "已解锁" : "已锁定") : "未启用"}</strong></section>
         <section class="summary-box"><span>循迹传感器</span><strong id="safetyLineBitsText">${s.line_bits.join(" ")}</strong></section>
         <section class="summary-box"><span>巡线状态</span><strong id="safetyLineStateText">${lineStateLabel(s.line_state)}</strong></section>
         <section class="summary-box"><span>安全策略</span><strong id="safetyStrategyText">${s.strategy}</strong></section>
@@ -623,7 +642,10 @@ function renderModuleBody(name, s) {
           </div>
           <div class="action-row">
             <button class="warning-btn" data-command="arrival">模拟到达终点</button>
-            <button class="primary-btn" data-command="qr">二维码校验</button>
+            <label style="font-size:0.8rem;color:#888;margin-left:0.5rem;">超时:</label>
+            <input type="range" id="qrTimeoutRange" min="3" max="30" value="10" step="1" style="flex:1;max-width:100px;">
+            <span id="qrTimeoutVal" style="font-size:0.8rem;min-width:1.5rem;">10</span><span style="font-size:0.7rem;color:#888;">秒</span>
+            <button class="success-btn" data-command="carQrScan">📷 车载摄像头扫码校验</button>
           </div>
         </div>
       </div>`,
@@ -643,6 +665,17 @@ function renderModuleBody(name, s) {
           </div>
           <div class="voice-result" id="voiceRecordResult">
             <span>等待录音...</span>
+          </div>
+        </div>
+        <div class="module-panel">
+          <h3>🤖 小车 Siri 模式</h3>
+          <p>小车 USB 麦克风常驻监听，说<b>"小车"</b>唤醒，然后说命令。</p>
+          <div class="wake-control-row">
+            <button class="primary-btn" id="wakeStartBtn" data-command="carWakeStart">🔊 开始唤醒监听</button>
+            <button class="danger-btn" id="wakeStopBtn" data-command="carWakeStop">⏹️ 停止</button>
+          </div>
+          <div class="wake-status" id="wakeStatusText">
+            <span>状态：${s.wake_running ? '🔊 小车监听中...说"小车"唤醒' : '⏸️ 未启动'}</span>
           </div>
         </div>
         <div class="module-panel">
@@ -771,6 +804,18 @@ function bindDynamicControls() {
       setText("manualSpeedText", speedRange.value);
     });
   }
+  const faceTimeoutRange = $("faceTimeoutRange");
+  if (faceTimeoutRange) {
+    faceTimeoutRange.addEventListener("input", () => {
+      setText("faceTimeoutVal", faceTimeoutRange.value);
+    });
+  }
+  const qrTimeoutRange = $("qrTimeoutRange");
+  if (qrTimeoutRange) {
+    qrTimeoutRange.addEventListener("input", () => {
+      setText("qrTimeoutVal", qrTimeoutRange.value);
+    });
+  }
   qsa("[data-command]", stage).forEach((button) => {
     button.addEventListener("click", () => runCommand(button.dataset.command));
   });
@@ -840,6 +885,17 @@ async function runCommand(command) {
     voice: () => endpoint("/api/voice/start", {target}),
     voiceStart: () => endpoint("/api/voice/start", {target}),
     voiceStop: () => endpoint("/api/voice/stop"),
+    carWakeStart: async () => {
+      const result = await endpoint("/api/car/voice/wake/start");
+      if (result.success) alert('小车唤醒监听已启动！说"小车"唤醒。');
+      else alert("启动失败：" + (result.message || ""));
+      return result;
+    },
+    carWakeStop: async () => {
+      const result = await endpoint("/api/car/voice/wake/stop");
+      if (result.success) alert("唤醒监听已停止。");
+      return result;
+    },
     voiceSimulate: async () => {
       const input = $("voiceSimulateInput");
       const text = input?.value?.trim();
@@ -888,6 +944,14 @@ async function runCommand(command) {
     carStop: () => endpoint("/api/car/stop"),
     carPause: () => endpoint("/api/car/pause"),
     carResume: () => endpoint("/api/car/resume"),
+    carFaceRecognize: async () => {
+      const timeout = Number($("faceTimeoutRange")?.value || 15);
+      return endpoint("/api/car/face/recognize", {timeout});
+    },
+    carQrScan: async () => {
+      const timeout = Number($("qrTimeoutRange")?.value || 10);
+      return endpoint("/api/car/qr_scan", {timeout});
+    },
     complete: async () => {
       await endpoint("/api/simulate/arrival");
       return endpoint("/api/vision/qr_scan");
@@ -998,13 +1062,31 @@ function distanceLevel(distance) {
 }
 
 function progressInfo(s) {
-  if (!s.path.length) return {progress: 0, current: "S", next: "-"};
-  if (modeIsDone(s)) return {progress: 100, current: s.path.at(-1), next: "-"};
-  if (s.mode === "ARRIVAL_CHECK") return {progress: 85, current: s.path.at(-1), next: "二维码校验"};
-  if (modeIsRunning(s)) return {progress: 55, current: s.path[1] || s.path[0], next: s.path[2] || s.path.at(-1)};
-  if (modeIsObstacle(s)) return {progress: 48, current: s.path[1] || s.path[0], next: "等待避障"};
-  if (s.mode === "READY") return {progress: 20, current: "S", next: s.path[1] || s.path.at(-1)};
-  return {progress: s.path.length ? 15 : 0, current: "S", next: s.path[1] || "-"};
+  // 优先使用小车端返回的真实路径导航数据
+  const nodes = (s.path_nodes && s.path_nodes.length) ? s.path_nodes : s.path;
+  if (!nodes.length) return {progress: 0, current: "S", next: "-"};
+
+  const idx = s.path_index || 0;
+
+  if (modeIsDone(s) || s.path_done) {
+    return {progress: 100, current: nodes[nodes.length - 1], next: "到达"};
+  }
+  if (s.mode === "ARRIVAL_CHECK") {
+    return {progress: 85, current: nodes[nodes.length - 1], next: "二维码校验"};
+  }
+  if (modeIsRunning(s)) {
+    const realProgress = nodes.length > 1
+      ? Math.round(idx / (nodes.length - 1) * 100)
+      : 55;
+    return {
+      progress: Math.max(realProgress, 5),
+      current: nodes[idx] || nodes[0],
+      next: nodes[idx + 1] || nodes[nodes.length - 1],
+    };
+  }
+  if (modeIsObstacle(s)) return {progress: 48, current: nodes[idx] || nodes[0], next: "等待避障"};
+  if (s.mode === "READY") return {progress: 20, current: "S", next: nodes[1] || nodes[nodes.length - 1]};
+  return {progress: nodes.length ? 15 : 0, current: "S", next: nodes[1] || "-"};
 }
 
 function updateOverview(s) {
@@ -1065,6 +1147,7 @@ function updateModuleFields(s) {
   setText("nextNodeText", progress.next);
   setText("progressText", `${progress.progress}%`);
   setText("runLineBitsText", s.line_bits.join(" "));
+  setText("runDoneText", s.path_done ? "✅ 已到达" : "行进中");
   setText("runStageText", modeIsRunning(s) ? "执行中" : modeLabel(s));
   const progressBar = $("taskProgressBar");
   if (progressBar) progressBar.style.width = `${progress.progress}%`;
@@ -1075,6 +1158,9 @@ function updateModuleFields(s) {
   const safety = $("safetyReadout");
   if (safety) safety.className = `safety-readout ${level}`;
   setText("safetyObstacleText", s.obstacle ? "检测到障碍物" : "安全");
+  setText("safetyIrText", s.ir_obstacle === 255 ? "无障碍" : s.ir_obstacle);
+  setText("safetyCollisionText", s.collision ? "⚠ 碰撞" : "正常");
+  setText("safetyFaceLockText", s.face_required ? (s.face_unlocked ? "已解锁" : "已锁定") : "未启用");
   setText("safetyLineBitsText", s.line_bits.join(" "));
   setText("safetyLineStateText", lineStateLabel(s.line_state));
   setText("safetyStrategyText", s.strategy);
@@ -1112,6 +1198,13 @@ function updateModuleFields(s) {
   setHTML("voiceFeedbackText", feedbackLinesHtml(s.rgb_color, s.buzzer));
   const listenResult = $("voiceListenResult");
   if (listenResult) listenResult.innerHTML = `<span>监听状态：${s.voice_listening ? '🔊 监听中...' : '⏸️ 未启动'}</span>`;
+  const wakeText = $("wakeStatusText");
+  if (wakeText) wakeText.innerHTML = `<span>状态：${s.wake_running ? '🔊 小车常驻监听中，说<b>"小车"</b>唤醒' : '⏸️ 未启动'}</span>`;
+  const wakeBtn = $("wakeStartBtn");
+  if (wakeBtn) {
+    wakeBtn.textContent = s.wake_running ? "🔄 监听中..." : "🔊 开始唤醒监听";
+    wakeBtn.disabled = s.wake_running;
+  }
 
   setText("manualAuthText", s.auth ? "已开放" : "未认证禁用");
   setText("manualModeText", modeLabel(s));
@@ -1368,6 +1461,18 @@ async function refreshStatus() {
   }
 }
 
+async function refreshWakeStatus() {
+  try {
+    const res = await fetch("/api/car/voice/wake/status", {cache: "no-store"});
+    if (res.ok) {
+      const data = await res.json();
+      statusCache.wake_running = data.running;
+      statusCache.wake_status = data.status;
+      updateAllViews(safeStatus());
+    }
+  } catch (_) { /* car offline, ignore */ }
+}
+
 qsa("[data-open-module]").forEach((button) => {
   button.addEventListener("click", () => enterConsole(button.dataset.openModule));
 });
@@ -1400,3 +1505,4 @@ renderWorkspace();
 updateAllViews(safeStatus());
 refreshStatus();
 setInterval(refreshStatus, 2500);
+setInterval(refreshWakeStatus, 3000);

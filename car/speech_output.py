@@ -49,12 +49,12 @@ def _play_audio_file(filepath: str) -> bool:
             pass
         return False
 
-    # Linux: 命令行播放器
+    # Linux: 命令行播放器（aplay 最优先，兼容 USB 声卡）
     for player_cmd in [
+        ["aplay"],
         ["mpg123", "-q"],
         ["mplayer", "-really-quiet", "-nodisplay"],
         ["ffplay", "-nodisp", "-autoexit", "-loglevel", "quiet"],
-        ["aplay"],
         ["paplay"],
     ]:
         try:
@@ -155,7 +155,7 @@ class Speaker:
             req.VoiceType = TTS_VOICE_TYPE
             req.Codec = "wav"          # wav 兼容性更好
             req.Speed = 0
-            req.Volume = 5
+            req.Volume = 10
             req.PrimaryLanguage = 1
 
             resp = client.TextToVoice(req)

@@ -26,11 +26,9 @@ from tencentcloud.common import credential
 from tencentcloud.common.exception.tencent_cloud_sdk_exception import TencentCloudSDKException
 from tencentcloud.tts.v20190823 import tts_client, models
 
-# 钉钉 Webhook（可选）
-WEBHOOK = os.environ.get(
-    "DINGTALK_WEBHOOK",
-    "https://oapi.dingtalk.com/robot/send?access_token=9279a4d002a95c938c0df09d712a51451c72f89b862bf9cc7f0e4deb24b4b1da"
-)
+# 钉钉 Webhook（可选，在 .env 中配置 DINGTALK_WEBHOOK）
+WEBHOOK = os.environ.get("DINGTALK_WEBHOOK",
+    "https://oapi.dingtalk.com/robot/send?access_token=3bda9b3fb94eda809cd294defd13b60f650d31a90df22d7324f742c0c96efa94")
 
 # 腾讯云密钥
 TENCENT_SECRET_ID = os.environ.get("TENCENT_SECRET_ID", "")
@@ -143,7 +141,12 @@ def speak_text(text: str) -> bool:
 
 
 def send_to_dingtalk(text: str) -> None:
-    """发送消息到钉钉"""
+    """发送消息到钉钉（自动添加关键词"小车"）"""
+    if not WEBHOOK:
+        return
+    # 确保包含钉钉机器人关键词
+    if "小车" not in text:
+        text = "【小车】" + text
     try:
         data = {
             "msgtype": "text",

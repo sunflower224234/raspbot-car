@@ -56,7 +56,7 @@ class TaskManager:
         self.logs.append("系统启动，等待人脸认证")
 
     def status(self) -> dict:
-        running = self.state.mode == "LINE_FOLLOW"
+        running = self.state.mode == "LINE_FOLLOW" and self.robot.connected
         sensor_status = self.sensor.tick(running)
 
         # 远程模式：从车载服务器拉取真实传感器数据
@@ -66,6 +66,11 @@ class TaskManager:
                 "distance_cm": car_status.get("distance_cm", 0),
                 "line_bits": car_status.get("line_bits", [0, 0, 0, 0]),
                 "car_ok": car_status.get("car_ok", False),
+                "ir_obstacle": car_status.get("ir_obstacle", 0xFF),
+                "collision": car_status.get("collision", False),
+                "path_nodes": car_status.get("path_nodes", []),
+                "path_index": car_status.get("path_index", 0),
+                "path_done": car_status.get("path_done", False),
             })
 
         result = {
@@ -93,10 +98,25 @@ class TaskManager:
         return None
 
     def face_auth(self, force_fail: bool = False) -> dict:
-        result = self.vision.face_auth(force_fail)
+        if force_fail:
+            self.state.auth = False
+            self.state.user = "未认证"
+            self.state.mode = "AUTH_REQUIRED"
+            self.state.message = "未授权用户，禁止进入任务控制"
+            self.feedback.alarm()
+            self.logs.append("人脸识别失败：强制失败模式", "danger")
+            return {"success": False, "user": None, "message": "未授权用户", "status": self.status()}
+
+        # remote 模式：优先使用小车端人脸识别（摄像头在小车上）
+        if self.robot.mode == "remote" and self.robot.connected:
+            result = self.robot.face_recognize(timeout=15)
+        else:
+            # real 模式或 simulated：使用本地 VisionService
+            result = self.vision.face_auth(force_fail)
+
         if result["success"]:
             self.state.auth = True
-            self.state.user = result["user"]
+            self.state.user = result.get("user", "authorized_user")
             self.state.mode = "IDLE"
             self.state.message = "人脸识别成功，已进入控制台"
             self.feedback.idle()
@@ -105,9 +125,9 @@ class TaskManager:
             self.state.auth = False
             self.state.user = "未认证"
             self.state.mode = "AUTH_REQUIRED"
-            self.state.message = "未授权用户，禁止进入任务控制"
+            self.state.message = result.get("message", "未授权用户，禁止进入任务控制")
             self.feedback.alarm()
-            self.logs.append("人脸识别失败：未授权用户，RGB 红灯报警，蜂鸣器报警", "danger")
+            self.logs.append(f"人脸识别失败：{result.get('message', '未授权用户')}，RGB 红灯报警，蜂鸣器报警", "danger")
         return {**result, "status": self.status()}
 
     def logout(self) -> dict:
@@ -185,8 +205,8 @@ class TaskManager:
         self.state.task_status = "running"
         self.state.message = f"小车开始自动巡线，任务来源：{source}"
         self.feedback.running()
-        # 远程模式下传递目标点
-        self.robot.set_task_target(target)
+        # 远程模式下传递目标点 + 完整路径（用于路口导航）
+        self.robot.set_task_target(target, self.state.path)
         self.robot.command("line_follow", 45)
         self.logs.append(f"小车开始自动巡线，目标点 {target}，来源 {source}", "success")
         return {"success": True, "message": self.state.message, "status": self.status()}
@@ -243,8 +263,10 @@ class TaskManager:
         return {"success": True, "status": self.status()}
 
     def qr_scan(self) -> dict:
-        result = self.vision.qr_scan(self.state.target)
-        if result["success"] and result["qr_value"] == self.state.target:
+        # 始终用车载摄像头扫描（二维码在地面上）
+        result = self.robot.qr_scan_car(timeout=10)
+
+        if result["success"] and result.get("qr_value") == self.state.target:
             self.state.mode = "DONE"
             self.state.task_status = "done"
             self.state.message = f"目标点 {self.state.target} 校验成功，任务完成"

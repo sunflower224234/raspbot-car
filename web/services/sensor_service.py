@@ -20,11 +20,13 @@ class SensorService:
 
     def __init__(self) -> None:
         self.mode = os.getenv("RASPBOT_HARDWARE_MODE", "simulated").lower()
-        self.distance_cm = 42
+        self.distance_cm = 0
         self.obstacle = False
-        self.line_bits = [0, 1, 1, 0]   # [L1, L2, R1, R2], 0=黑线, 1=白底
-        self.line_state = "CENTER"
-        self.strategy = "正常行驶"
+        self.line_bits = [0, 0, 0, 0]   # [L1, L2, R1, R2], 0=黑线, 1=白底
+        self.line_state = "未连接"
+        self.strategy = "等待连接小车"
+        self.ir_obstacle = 0xFF          # 红外避障值（0xFF=无障碍）
+        self.collision = False           # 碰撞检测
         self._car = None
 
         if self.mode == "real":
@@ -81,6 +83,8 @@ class SensorService:
             "line_bits": self.line_bits,
             "line_state": self.line_state,
             "strategy": self.strategy,
+            "ir_obstacle": self.ir_obstacle,
+            "collision": self.collision,
         }
 
     def set_obstacle(self, active: bool) -> dict:

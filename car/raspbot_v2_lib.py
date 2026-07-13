@@ -88,8 +88,10 @@ ULTRASONIC_SWITCH_REG = 0x07
 RGB_BRIGHTNESS_ALL_REG = 0x08
 RGB_BRIGHTNESS_ONE_REG = 0x09
 LINE_SENSOR_REG = 0x0A
-ULTRASONIC_LOW_REG = 0x1A
-ULTRASONIC_HIGH_REG = 0x1B
+IR_OBSTACLE_REG = 0x0C       # 红外避障数值（读后自动重置为 0xFF）
+COLLISION_REG = 0x0D         # 碰撞传感器（0=正常, 1=碰撞）
+ULTRASONIC_HIGH_REG = 0x1A   # 超声波距离高位（mm）
+ULTRASONIC_LOW_REG = 0x1B    # 超声波距离低位（mm）
 
 
 class RaspbotI2CError(RuntimeError):
@@ -482,18 +484,28 @@ class Raspbot:
         }
 
     def read_ultrasonic_cm(self) -> float:
-        """读取超声波距离（厘米）。寄存器原始值为毫米，需除以 10。"""
-        low = self.read_data_array(ULTRASONIC_LOW_REG, 1)[0]
-        high = self.read_data_array(ULTRASONIC_HIGH_REG, 1)[0]
-        raw_distance = (int(high) << 8) | int(low)  # 毫米
+        """读取超声波距离（厘米）。一次 I2C 事务原子读取高低位，避免撕裂。"""
+        data = self.read_data_array(ULTRASONIC_HIGH_REG, 2)  # 连续读 0x1A(LOW), 0x1B(HIGH)
+        raw_distance = (int(data[1]) << 8) | int(data[0])     # HIGH(0x1B) << 8 | LOW(0x1A)（毫米）
         return raw_distance / 10.0 if raw_distance > 0 else 0.0
 
     def read_ultrasonic_mm(self) -> int:
-        """读取超声波距离（毫米）。"""
-        low = self.read_data_array(ULTRASONIC_LOW_REG, 1)[0]
-        high = self.read_data_array(ULTRASONIC_HIGH_REG, 1)[0]
-        raw_distance = (int(high) << 8) | int(low)
+        """读取超声波距离（毫米）。一次 I2C 事务原子读取高低位，避免撕裂。"""
+        data = self.read_data_array(ULTRASONIC_HIGH_REG, 2)
+        raw_distance = (int(data[1]) << 8) | int(data[0])     # HIGH(0x1B) << 8 | LOW(0x1A)（毫米）
         return int(raw_distance) if raw_distance > 0 else 0
+
+    def read_ir_obstacle(self) -> int:
+        """读取红外避障传感器数值（0x00-0xFF）。
+        返回值越小表示障碍物越近，0xFF 表示无障碍。
+        注意：读取后寄存器自动重置为 0xFF。"""
+        data = self.read_data_array(IR_OBSTACLE_REG, 1)
+        return int(data[0]) & 0xFF
+
+    def read_collision(self) -> bool:
+        """读取碰撞传感器状态。True=检测到碰撞。"""
+        data = self.read_data_array(COLLISION_REG, 1)
+        return (int(data[0]) & 0x01) == 0x01
 
     # -------------------- 状态与控制 --------------------
     def backend_name(self) -> str:

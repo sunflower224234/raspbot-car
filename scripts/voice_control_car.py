@@ -13,6 +13,17 @@
 
 from __future__ import annotations
 
+import os as _os
+import sys as _sys
+
+_HERE = _os.path.dirname(_os.path.abspath(__file__))
+_ROOT = _os.path.dirname(_HERE)
+_sys.path.insert(0, _HERE)
+_sys.path.insert(0, _os.path.join(_ROOT, "web"))
+_sys.path.insert(0, _os.path.join(_ROOT, "web", "services"))
+_sys.path.insert(0, _os.path.join(_ROOT, "car"))
+_sys.path.insert(0, _os.path.join(_ROOT, "tools"))
+
 import time
 from typing import Callable, Optional
 

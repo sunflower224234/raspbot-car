@@ -1,0 +1,517 @@
+[
+  {
+    "time": "10:32:50",
+    "message": "人脸识别失败：人脸识别失败：未匹配到授权用户，RGB 红灯报警，蜂鸣器报警",
+    "level": "danger"
+  },
+  {
+    "time": "10:32:51",
+    "message": "人脸识别失败：人脸识别失败：未匹配到授权用户，RGB 红灯报警，蜂鸣器报警",
+    "level": "danger"
+  },
+  {
+    "time": "10:32:51",
+    "message": "人脸识别失败：人脸识别失败：未匹配到授权用户，RGB 红灯报警，蜂鸣器报警",
+    "level": "danger"
+  },
+  {
+    "time": "10:32:51",
+    "message": "人脸识别失败：人脸识别失败：未匹配到授权用户，RGB 红灯报警，蜂鸣器报警",
+    "level": "danger"
+  },
+  {
+    "time": "10:32:51",
+    "message": "用户退出登录，系统回到认证入口",
+    "level": "info"
+  },
+  {
+    "time": "10:33:10",
+    "message": "人脸识别失败：人脸识别失败：未匹配到授权用户，RGB 红灯报警，蜂鸣器报警",
+    "level": "danger"
+  },
+  {
+    "time": "10:33:13",
+    "message": "用户人脸识别成功，进入控制台",
+    "level": "success"
+  },
+  {
+    "time": "10:33:18",
+    "message": "【语音识别】「今天天气」→ 匹配命令：天气",
+    "level": "success"
+  },
+  {
+    "time": "10:33:19",
+    "message": "【语音识别】「今天天气」→ 匹配命令：天气",
+    "level": "success"
+  },
+  {
+    "time": "10:33:19",
+    "message": "天气播报已执行",
+    "level": "success"
+  },
+  {
+    "time": "10:33:21",
+    "message": "天气播报已执行",
+    "level": "success"
+  },
+  {
+    "time": "10:34:27",
+    "message": "【语音识别】「今天天气」→ 匹配命令：天气",
+    "level": "success"
+  },
+  {
+    "time": "10:34:29",
+    "message": "【语音识别】「今天天气」→ 匹配命令：天气",
+    "level": "success"
+  },
+  {
+    "time": "10:34:30",
+    "message": "天气播报已执行",
+    "level": "success"
+  },
+  {
+    "time": "10:34:31",
+    "message": "天气播报已执行",
+    "level": "success"
+  },
+  {
+    "time": "10:34:46",
+    "message": "【语音识别】「语音测试」→ 匹配命令：语音测试",
+    "level": "success"
+  },
+  {
+    "time": "10:34:46",
+    "message": "语音测试通过（模拟模式）",
+    "level": "success"
+  },
+  {
+    "time": "10:34:55",
+    "message": "【语音识别】「今天天气」→ 匹配命令：天气",
+    "level": "success"
+  },
+  {
+    "time": "10:34:57",
+    "message": "天气播报已执行",
+    "level": "success"
+  },
+  {
+    "time": "10:43:13",
+    "message": "【语音识别】「今天天气」→ 匹配命令：天气",
+    "level": "success"
+  },
+  {
+    "time": "10:43:16",
+    "message": "天气播报已执行",
+    "level": "success"
+  },
+  {
+    "time": "10:44:09",
+    "message": "【语音识别】ASR 识别结果：「随便说两句话。」",
+    "level": "info"
+  },
+  {
+    "time": "10:44:09",
+    "message": "【语音识别】「随便说两句话。」→ 未匹配到命令",
+    "level": "warning"
+  },
+  {
+    "time": "10:44:19",
+    "message": "【语音识别】「今天天气」→ 匹配命令：天气",
+    "level": "success"
+  },
+  {
+    "time": "10:44:21",
+    "message": "天气播报已执行",
+    "level": "success"
+  },
+  {
+    "time": "10:45:06",
+    "message": "手动停止小车",
+    "level": "info"
+  },
+  {
+    "time": "11:03:28",
+    "message": "【语音识别】「今天天气」→ 匹配命令：天气",
+    "level": "success"
+  },
+  {
+    "time": "11:03:30",
+    "message": "天气播报已执行",
+    "level": "success"
+  },
+  {
+    "time": "11:15:05",
+    "message": "【语音识别】「今天天气」→ 匹配命令：天气",
+    "level": "success"
+  },
+  {
+    "time": "11:15:06",
+    "message": "用户人脸识别成功，进入控制台",
+    "level": "success"
+  },
+  {
+    "time": "11:15:07",
+    "message": "天气播报已执行",
+    "level": "success"
+  },
+  {
+    "time": "11:17:07",
+    "message": "【语音识别】「今天天气」→ 匹配命令：天气",
+    "level": "success"
+  },
+  {
+    "time": "11:17:10",
+    "message": "天气播报已执行",
+    "level": "success"
+  },
+  {
+    "time": "11:18:15",
+    "message": "直接循迹启动 → B，速度 30",
+    "level": "success"
+  },
+  {
+    "time": "11:18:37",
+    "message": "直连暂停循迹",
+    "level": "info"
+  },
+  {
+    "time": "11:18:51",
+    "message": "直连恢复循迹",
+    "level": "info"
+  },
+  {
+    "time": "11:20:35",
+    "message": "直接循迹启动 → B，速度 30",
+    "level": "success"
+  },
+  {
+    "time": "11:21:20",
+    "message": "前方距离 14 cm，检测到障碍物",
+    "level": "warning"
+  },
+  {
+    "time": "11:21:20",
+    "message": "小车已停车，RGB 红灯报警，蜂鸣器报警",
+    "level": "danger"
+  },
+  {
+    "time": "11:21:25",
+    "message": "障碍物移除，继续任务",
+    "level": "success"
+  },
+  {
+    "time": "11:21:59",
+    "message": "直连暂停循迹",
+    "level": "info"
+  },
+  {
+    "time": "11:23:28",
+    "message": "直连恢复循迹",
+    "level": "info"
+  },
+  {
+    "time": "11:23:44",
+    "message": "直连恢复循迹",
+    "level": "info"
+  },
+  {
+    "time": "11:23:45",
+    "message": "直连恢复循迹",
+    "level": "info"
+  },
+  {
+    "time": "11:23:47",
+    "message": "直连恢复循迹",
+    "level": "info"
+  },
+  {
+    "time": "11:23:47",
+    "message": "直连恢复循迹",
+    "level": "info"
+  },
+  {
+    "time": "11:23:48",
+    "message": "直连恢复循迹",
+    "level": "info"
+  },
+  {
+    "time": "11:23:50",
+    "message": "直连恢复循迹",
+    "level": "info"
+  },
+  {
+    "time": "11:23:51",
+    "message": "直连恢复循迹",
+    "level": "info"
+  },
+  {
+    "time": "11:23:52",
+    "message": "直连恢复循迹",
+    "level": "info"
+  },
+  {
+    "time": "11:23:54",
+    "message": "直连恢复循迹",
+    "level": "info"
+  },
+  {
+    "time": "11:23:55",
+    "message": "直连恢复循迹",
+    "level": "info"
+  },
+  {
+    "time": "11:23:55",
+    "message": "直连恢复循迹",
+    "level": "info"
+  },
+  {
+    "time": "11:23:57",
+    "message": "直连恢复循迹",
+    "level": "info"
+  },
+  {
+    "time": "11:23:58",
+    "message": "直连恢复循迹",
+    "level": "info"
+  },
+  {
+    "time": "11:23:59",
+    "message": "直连恢复循迹",
+    "level": "info"
+  },
+  {
+    "time": "11:24:01",
+    "message": "直连恢复循迹",
+    "level": "info"
+  },
+  {
+    "time": "11:24:02",
+    "message": "直连恢复循迹",
+    "level": "info"
+  },
+  {
+    "time": "11:24:02",
+    "message": "直连恢复循迹",
+    "level": "info"
+  },
+  {
+    "time": "11:24:05",
+    "message": "直连恢复循迹",
+    "level": "info"
+  },
+  {
+    "time": "11:30:28",
+    "message": "用户人脸识别成功，进入控制台",
+    "level": "success"
+  },
+  {
+    "time": "11:30:28",
+    "message": "人脸识别失败：人脸识别失败：未匹配到授权用户，RGB 红灯报警，蜂鸣器报警",
+    "level": "danger"
+  },
+  {
+    "time": "11:30:48",
+    "message": "用户人脸识别成功，进入控制台",
+    "level": "success"
+  },
+  {
+    "time": "11:31:00",
+    "message": "直接循迹启动 → B，速度 30",
+    "level": "success"
+  },
+  {
+    "time": "11:32:13",
+    "message": "直连恢复循迹",
+    "level": "info"
+  },
+  {
+    "time": "11:32:17",
+    "message": "直接循迹启动 → B，速度 30",
+    "level": "success"
+  },
+  {
+    "time": "11:32:52",
+    "message": "直连暂停循迹",
+    "level": "info"
+  },
+  {
+    "time": "11:32:59",
+    "message": "任务已取消",
+    "level": "info"
+  },
+  {
+    "time": "11:51:54",
+    "message": "人脸识别失败：无法连接小车：http://10.77.131.204:5001，RGB 红灯报警，蜂鸣器报警",
+    "level": "danger"
+  },
+  {
+    "time": "11:51:54",
+    "message": "人脸识别失败：强制失败模式",
+    "level": "danger"
+  },
+  {
+    "time": "11:51:55",
+    "message": "用户人脸识别成功，进入控制台",
+    "level": "success"
+  },
+  {
+    "time": "11:51:59",
+    "message": "用户人脸识别成功，进入控制台",
+    "level": "success"
+  },
+  {
+    "time": "12:10:34",
+    "message": "【语音识别】「你好小车」→ 匹配命令：唤醒",
+    "level": "success"
+  },
+  {
+    "time": "12:10:34",
+    "message": "语音唤醒",
+    "level": "info"
+  },
+  {
+    "time": "12:11:20",
+    "message": "系统启动，等待人脸认证",
+    "level": "info"
+  },
+  {
+    "time": "12:14:45",
+    "message": "人脸识别失败：人脸识别失败：未匹配到授权用户，RGB 红灯报警，蜂鸣器报警",
+    "level": "danger"
+  },
+  {
+    "time": "12:14:48",
+    "message": "用户人脸识别成功，进入控制台",
+    "level": "success"
+  },
+  {
+    "time": "12:17:09",
+    "message": "系统启动，等待人脸认证",
+    "level": "info"
+  },
+  {
+    "time": "12:17:54",
+    "message": "人脸识别失败：人脸识别失败：未匹配到授权用户，RGB 红灯报警，蜂鸣器报警",
+    "level": "danger"
+  },
+  {
+    "time": "12:17:57",
+    "message": "用户人脸识别成功，进入控制台",
+    "level": "success"
+  },
+  {
+    "time": "12:19:25",
+    "message": "🔊 小车唤醒监听已启动",
+    "level": "success"
+  },
+  {
+    "time": "12:22:02",
+    "message": "🔇 小车唤醒监听已停止",
+    "level": "info"
+  },
+  {
+    "time": "12:30:41",
+    "message": "系统启动，等待人脸认证",
+    "level": "info"
+  },
+  {
+    "time": "12:30:55",
+    "message": "人脸识别失败：人脸识别失败：未匹配到授权用户，RGB 红灯报警，蜂鸣器报警",
+    "level": "danger"
+  },
+  {
+    "time": "12:30:58",
+    "message": "用户人脸识别成功，进入控制台",
+    "level": "success"
+  },
+  {
+    "time": "12:31:19",
+    "message": "🔊 小车唤醒监听已启动",
+    "level": "success"
+  },
+  {
+    "time": "12:32:37",
+    "message": "直连恢复循迹",
+    "level": "info"
+  },
+  {
+    "time": "12:32:38",
+    "message": "直连恢复循迹",
+    "level": "info"
+  },
+  {
+    "time": "12:32:39",
+    "message": "直接循迹启动 → B，速度 30",
+    "level": "success"
+  },
+  {
+    "time": "12:32:39",
+    "message": "直接循迹启动 → B，速度 30",
+    "level": "success"
+  },
+  {
+    "time": "12:32:42",
+    "message": "直接循迹启动 → B，速度 30",
+    "level": "success"
+  },
+  {
+    "time": "12:36:08",
+    "message": "🔊 小车唤醒监听已启动",
+    "level": "success"
+  },
+  {
+    "time": "12:40:14",
+    "message": "手动停止小车",
+    "level": "info"
+  },
+  {
+    "time": "12:40:15",
+    "message": "手动停止小车",
+    "level": "info"
+  },
+  {
+    "time": "12:40:18",
+    "message": "直连暂停循迹",
+    "level": "info"
+  },
+  {
+    "time": "12:40:33",
+    "message": "急停触发：任务中断，RGB 红灯报警，蜂鸣器报警",
+    "level": "danger"
+  },
+  {
+    "time": "12:40:37",
+    "message": "任务已取消",
+    "level": "info"
+  },
+  {
+    "time": "12:43:32",
+    "message": "直连恢复循迹",
+    "level": "info"
+  },
+  {
+    "time": "12:43:37",
+    "message": "直连暂停循迹",
+    "level": "info"
+  },
+  {
+    "time": "12:43:39",
+    "message": "任务已取消",
+    "level": "info"
+  },
+  {
+    "time": "12:43:40",
+    "message": "任务已取消",
+    "level": "info"
+  },
+  {
+    "time": "12:43:42",
+    "message": "直连恢复循迹",
+    "level": "info"
+  },
+  {
+    "time": "12:43:44",
+    "message": "直连暂停循迹",
+    "level": "info"
+  }
+]
