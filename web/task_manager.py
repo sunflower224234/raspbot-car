@@ -68,6 +68,8 @@ class TaskManager:
                 "car_ok": car_status.get("car_ok", False),
                 "ir_obstacle": car_status.get("ir_obstacle", 0xFF),
                 "collision": car_status.get("collision", False),
+                "obstacle": car_status.get("obstacle", False),
+                "strategy": car_status.get("strategy", "等待连接小车"),
                 "path_nodes": car_status.get("path_nodes", []),
                 "path_index": car_status.get("path_index", 0),
                 "path_done": car_status.get("path_done", False),

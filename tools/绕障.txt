@@ -1,0 +1,82 @@
+1.	def avoid():
+2.	    #检测障碍物类型
+3.	    Check_entity()
+4.	    set_servo_angle(55)
+5.	    time.sleep(0.5)
+6.	    distance1 = Distance_test()
+7.	    print('distance1 is %d' % distance1)
+8.	    time.sleep(0.1)
+9.	    set_servo_angle(143)
+10.	    time.sleep(0.5)
+11.	    distance2 = Distance_test()
+12.	    print('distance2 is %d' % distance2)
+13.	    time.sleep(0.1)
+14.	    set_servo_angle(93)
+15.	    # 右侧绕
+16.	    if distance1 > 50 and distance1 >= distance2:
+17.	        spin_right(25, 25)
+18.	
+19.	        time.sleep(0.3)
+20.	        run(45, 5)  #
+21.	        time.sleep(0.25)
+22.	
+23.	        run(5, 49)
+24.	        time.sleep(0.6)
+25.	
+26.	        run(20, 23)
+27.	        time.sleep(0.20)
+28.	
+29.	        run(5, 52)
+30.	        time.sleep(0.9)
+31.	        brake()
+32.	        time.sleep(40)
+33.	        while (True):
+34.	            run(20, 20)
+35.	            time.sleep(0.05)
+36.	
+37.	            TrackSensorLeftValue1 = GPIO.input(TrackSensorLeftPin1)
+38.	            TrackSensorLeftValue2 = GPIO.input(TrackSensorLeftPin2)
+39.	            TrackSensorRightValue1 = GPIO.input(TrackSensorRightPin1)
+40.	            TrackSensorRightValue2 = GPIO.input(TrackSensorRightPin2)
+41.	            if TrackSensorRightValue1 == False and TrackSensorLeftValue2 == False:
+42.	                print('avoid_right')
+43.	                spin_right(25, 25)
+44.	                time.sleep(0.45)
+45.	                return
+46.	    #左侧
+47.	
+48.	    elif distance2 > 50 and distance2 > distance1:
+49.	        spin_left(25, 25)
+50.	
+51.	        time.sleep(0.3)
+52.	        run(5, 45)  #
+53.	        time.sleep(0.35)
+54.	
+55.	        run(50, 5)
+56.	        time.sleep(0.7)
+57.	
+58.	        run(10, 12)
+59.	        time.sleep(0.2)
+60.	
+61.	        run(54, 2)
+62.	        time.sleep(0.60)
+63.	
+64.	        while (True):
+65.	            run(5, 6)
+66.	            time.sleep(0.1)
+67.	            TrackSensorLeftValue1 = GPIO.input(TrackSensorLeftPin1)
+68.	            TrackSensorLeftValue2 = GPIO.input(TrackSensorLeftPin2)
+69.	            TrackSensorRightValue1 = GPIO.input(TrackSensorRightPin1)
+70.	            TrackSensorRightValue2 = GPIO.input(TrackSensorRightPin2)
+71.	            if TrackSensorRightValue1 == False and TrackSensorLeftValue2 == False:
+72.	                print('avoid_left')
+73.	
+74.	                spin_left(25, 25)
+75.	                time.sleep(0.2)
+76.	
+77.	                return
+78.	        # spin_right(32, 32)
+79.	        # time.sleep(0.4)  # 转弯后前方距离小于25cm时向左原地转弯90度
+80.	        # run(20, 20)  # 转弯后当前方距离大于25cm时前进
+81.	    else:
+82.	        spin_left(30, 30)

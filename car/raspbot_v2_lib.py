@@ -484,15 +484,17 @@ class Raspbot:
         }
 
     def read_ultrasonic_cm(self) -> float:
-        """读取超声波距离（厘米）。一次 I2C 事务原子读取高低位，避免撕裂。"""
-        data = self.read_data_array(ULTRASONIC_HIGH_REG, 2)  # 连续读 0x1A(LOW), 0x1B(HIGH)
-        raw_distance = (int(data[1]) << 8) | int(data[0])     # HIGH(0x1B) << 8 | LOW(0x1A)（毫米）
-        return raw_distance / 10.0 if raw_distance > 0 else 0.0
+        """读取超声波距离（厘米）。先读高位 0x1B 触发锁存，再读低位 0x1A。"""
+        mm = self.read_ultrasonic_mm()
+        return mm / 10.0 if mm > 0 else 0.0
 
     def read_ultrasonic_mm(self) -> int:
-        """读取超声波距离（毫米）。一次 I2C 事务原子读取高低位，避免撕裂。"""
-        data = self.read_data_array(ULTRASONIC_HIGH_REG, 2)
-        raw_distance = (int(data[1]) << 8) | int(data[0])     # HIGH(0x1B) << 8 | LOW(0x1A)（毫米）
+        """读取超声波距离（毫米）。先读高位 0x1B 触发锁存，再读低位 0x1A。"""
+        # 必须分两次读：先读 0x1B 锁存当前测量值，再读 0x1A 获取低位
+        # 如果连续读（read_data_array(0x1A, 2)）会导致数据错位
+        diss_H = self.read_data_array(ULTRASONIC_LOW_REG, 1)[0]   # 0x1B = 高位，先读触发锁存
+        diss_L = self.read_data_array(ULTRASONIC_HIGH_REG, 1)[0]  # 0x1A = 低位
+        raw_distance = (diss_H << 8) | diss_L
         return int(raw_distance) if raw_distance > 0 else 0
 
     def read_ir_obstacle(self) -> int:

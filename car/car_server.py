@@ -40,6 +40,7 @@ _car_lock = threading.Lock()
 _line_follow_thread = None
 _line_follow_stop = threading.Event()
 _line_follow_pause = threading.Event()
+_last_ir_value = 0xFF  # 缓存红外避障值，避免状态API与循迹线程争抢寄存器
 
 # ---- 人脸识别锁 ----
 _face_unlocked = threading.Event()
@@ -224,6 +225,7 @@ def api_qr_scan():
 # ======================== 状态接口 ========================
 @app.get("/api/status")
 def api_status():
+    global _last_ir_value
     dist = 0
     line_bits = [0, 0, 0, 0]
     line_state = "UNKNOWN"
@@ -238,11 +240,12 @@ def api_status():
                 pass
             try:
                 raw = car.read_line_sensors()
+                # 循迹: 0=黑线(在线上), 1=白底(离线)
                 line_bits = [
-                    0 if raw.get("left_1", True) else 1,
-                    0 if raw.get("left_2", True) else 1,
-                    0 if raw.get("right_1", True) else 1,
-                    0 if raw.get("right_2", True) else 1,
+                    1 if raw.get("left_1", True) else 0,
+                    1 if raw.get("left_2", True) else 0,
+                    1 if raw.get("right_1", True) else 0,
+                    1 if raw.get("right_2", True) else 0,
                 ]
                 bits = tuple(line_bits)
                 if bits == (0, 0, 0, 0):
@@ -261,12 +264,26 @@ def api_status():
                 pass
             try:
                 ir_obstacle = car.read_ir_obstacle()
+                _last_ir_value = ir_obstacle
             except Exception:
                 pass
             try:
                 collision = car.read_collision()
             except Exception:
                 pass
+
+    # 判断障碍物状态
+    obstacle_detected = (0 < dist <= 25) or (0 < ir_obstacle < 0x50)
+    running = _line_follow_thread is not None and _line_follow_thread.is_alive()
+    if running:
+        strategy = "巡线中（超声+红外避障）" if not _line_follow_pause.is_set() else "巡线暂停"
+    elif obstacle_detected:
+        strategy = "检测到障碍物，等待处理"
+    elif car is None:
+        strategy = "底盘未连接"
+    else:
+        strategy = "待机中（超声+红外监测）"
+
     return jsonify({
         "car_ok": car is not None,
         "distance_cm": dist,
@@ -274,7 +291,9 @@ def api_status():
         "line_state": line_state,
         "ir_obstacle": ir_obstacle,
         "collision": collision,
-        "line_follow_running": _line_follow_thread is not None and _line_follow_thread.is_alive(),
+        "obstacle": obstacle_detected,
+        "strategy": strategy,
+        "line_follow_running": running,
         "line_follow_paused": _line_follow_pause.is_set(),
         "face_required": _face_required,
         "face_unlocked": _face_unlocked.is_set(),
@@ -454,7 +473,7 @@ def api_voice_listen():
                 result["message"] = "底盘未连接"
             else:
                 _line_follow_thread = threading.Thread(
-                    target=_run_line_follow, args=(target, 32, path), daemon=True)
+                    target=_run_line_follow, args=(target, 15, path), daemon=True)
                 _line_follow_thread.start()
                 result["executed"] = True
                 result["message"] = f"语音命令「{cmd.label}」→ 开始前往 {target} 点"
@@ -584,6 +603,7 @@ except ImportError:
 
 def _wake_command_loop():
     """后台线程：等待唤醒词 → 执行命令。"""
+    global _last_ir_value
     wl = _get_wake_listener()
     while wl._listening:
         cmd = wl.wait_for_command(timeout=60)
@@ -635,7 +655,7 @@ def _wake_command_loop():
                 Speaker().speak("底盘未连接", wait=False)
             else:
                 _line_follow_thread = threading.Thread(
-                    target=_run_line_follow, args=(target, 32, path), daemon=True)
+                    target=_run_line_follow, args=(target, 15, path), daemon=True)
                 _line_follow_thread.start()
                 from speech_output import Speaker
                 Speaker().speak(f"收到，正在前往{target}点", wait=False)
@@ -710,6 +730,7 @@ def _wake_command_loop():
                 except Exception: checks.append("循迹异常")
                 try:
                     ir = car.read_ir_obstacle()
+                    _last_ir_value = ir
                     checks.append(f"红外{ir}")
                 except Exception: checks.append("红外异常")
             else:
@@ -733,11 +754,11 @@ def _wake_command_loop():
 
 
 # ======================== 循迹 + 避障 参数 ========================
-LF_SPEED = int(os.environ.get("RASPBOT_LINE_SPEED", "32"))
-LF_SMALL_TURN = int(os.environ.get("RASPBOT_SMALL_TURN_SPEED", "20"))
-LF_SPIN = int(os.environ.get("RASPBOT_SPIN_SPEED", "36"))
-LF_BACK = int(os.environ.get("RASPBOT_BACK_SPEED", "25"))
-LF_OBS_CM = float(os.environ.get("RASPBOT_OBSTACLE_DISTANCE_CM", "35"))
+LF_SPEED = int(os.environ.get("RASPBOT_LINE_SPEED", "15"))
+LF_SMALL_TURN = int(os.environ.get("RASPBOT_SMALL_TURN_SPEED", "12"))
+LF_SPIN = int(os.environ.get("RASPBOT_SPIN_SPEED", "18"))
+LF_BACK = int(os.environ.get("RASPBOT_BACK_SPEED", "18"))
+LF_OBS_CM = float(os.environ.get("RASPBOT_OBSTACLE_DISTANCE_CM", "50"))
 LF_CLEAR_CM = float(os.environ.get("RASPBOT_CLEAR_DISTANCE_CM", "30"))
 LF_KP = float(os.environ.get("RASPBOT_LINE_KP", "0.45"))
 LF_KI = float(os.environ.get("RASPBOT_LINE_KI", "0.02"))
@@ -811,24 +832,19 @@ def _compute_line_error(bits):
     return max(-1.0, min(1.0, weighted / (total * 1.5)))
 
 
-# ==================== 避障（参考代码融合版） ====================
-def _avoid_obstacle(speed: int = 30):
-    """舵机扫描避障 + 传感器回线 + 自动回正 + 低速贴线。"""
-    global _lf_integral, _lf_last_error
 
-    # ---- 参数 ----
-    SIDE_SPEED = 24;       FWD_SPEED = 18;      BACK_SPD = 18
-    BACK_TIME = 0.15;      SIDE_OUT = 0.90;      PASS_TIME = 0.60
-    TOO_CLOSE = 14.0
-    RET_SIDE = 15;         RET_FWD = 4;          RET_TO = 3.20
-    RC_TO = 1.60;          RC_FWD = 10
-    RC_SIDE_MAX = 12;      RC_SIDE_MIN = 5;      RC_SIDE_KP = 4.0
-    RC_TURN_MAX = 7;       RC_TURN_KP = 2.0;     RC_DZ = 1.05
-    ALIGN_T = 0.80;        DT = 0.03
+
+
+# ==================== 避障（转弯绕障） ====================
+def _avoid_obstacle(speed: int = 30):
+    """停车 → 后退 → 左/右转90° → 前进越过 → 转回 → 直行找回黑线。
+
+    每次左右交替，不依赖舵机扫描，纯转弯绕过。
+    """
+    global _lf_integral, _lf_last_error
 
     _avoid_count = getattr(_avoid_obstacle, "_count", 0) + 1
     _avoid_obstacle._count = _avoid_count
-    prefer_right = (_avoid_count % 2 == 0)
 
     def _stop(d=0.06):
         car.Ctrl_Car(0, 0, 0); time.sleep(d)
@@ -842,154 +858,66 @@ def _avoid_obstacle(speed: int = 30):
         try: return float(car.read_ultrasonic_cm())
         except: return 0.0
 
-    def _is_b(v): return v is True
+    def _spin(clockwise: bool, t: float):
+        s = 18 if clockwise else -18
+        car.Ctrl_Car(0, 0, s); time.sleep(t); _stop()
 
-    def _center(line):
-        return line is not None and len(line) >= 4 and (_is_b(line[1]) or _is_b(line[2]))
+    turn_dir = "右" if True else "左"
+    print(f"[小车] 绕障开始 → 向{turn_dir}绕行")
 
-    def _any_b(line):
-        return line is not None and any(_is_b(v) for v in line)
-
-    def _err(line):
-        if line is None or len(line) < 4: return None
-        w = (-3.0, -1.0, 1.0, 3.0)
-        pos = [w[i] for i, v in enumerate(line[:4]) if _is_b(v)]
-        return sum(pos) / len(pos) if pos else None
-
-    def _strafe(d, spd):
-        car.Ctrl_Car(0, spd if d == "right" else -spd, 0)
-
-    def _strafe_fwd(d, s_spd, f_spd=0):
-        car.Ctrl_Car(f_spd, s_spd if d == "right" else -s_spd, 0)
-
-    print(f"[小车] 绕障开始 prefer_right={prefer_right}")
-
-    # ======== 0. 确保传感器开启 ========
-    car.Ctrl_Ulatist_Switch(1)   # 确保超声波已开启
-    time.sleep(0.1)              # 等待超声波稳定
-
-    # ======== 1. 停车 + 必要时后退 ========
+    # ======== 1. 停车 + 后退 ========
     car.Ctrl_WQ2812_brightness_ALL(160, 0, 0)
     car.emergency_stop(repeats=5, interval=0.02)
     _stop(0.08)
     if _chk(): return
 
     d = _dist()
-    if 0 < d < TOO_CLOSE:
-        print(f"[小车] 距离太近 {d:.0f}cm，先后退")
-        car.Ctrl_Car(-BACK_SPD, 0, 0); time.sleep(BACK_TIME); _stop()
+    if 0 < d < 14:
+        print(f"[小车] 太近 {d:.0f}cm，后退")
+        car.Ctrl_Car(-18, 0, 0); time.sleep(0.15); _stop()
         if _chk(): return
 
-    # ======== 2. 舵机扫描 ========
-    car.Ctrl_Servo(1, 0); time.sleep(0.55); right_d = _dist()
-    car.Ctrl_Servo(1, 180); time.sleep(0.55); left_d = _dist()
-    car.Ctrl_Servo(1, 90); time.sleep(0.35); front_d = _dist()
-    print(f"[小车] 测距：左={left_d:.1f} 前={front_d:.1f} 右={right_d:.1f}")
-
-    left_ok = left_d == 0 or left_d >= LF_CLEAR_CM
-    right_ok = right_d == 0 or right_d >= LF_CLEAR_CM
-    front_ok = 0 < front_d <= LF_OBS_CM
-
-    # ======== 3. 选定方向 + 绕行 ========
-    if not left_ok and not right_ok and front_ok:
-        print("[小车] 三面较近，掉头")
-        car.Ctrl_WQ2812_brightness_ALL(120, 0, 120)
-        car.Ctrl_Car(0, 0, LF_SPIN); time.sleep(0.65); _stop()
-        if _chk(): return
-        _pid_reset(); car.Ctrl_WQ2812_brightness_ALL(0, 120, 0); return
-
-    if right_ok and (prefer_right or not left_ok):
-        side = "right"
-    elif left_ok:
-        side = "left"
-    else:
-        print("[小车] 测距不理想，右转微调")
-        car.Ctrl_Car(0, 0, LF_SPIN); time.sleep(0.35); _stop()
-        _pid_reset(); car.Ctrl_WQ2812_brightness_ALL(0, 120, 0); return
-
-    back_side = "left" if side == "right" else "right"
+    # ======== 2. 矩形绕行：右转→直行→左转→直行→左转→找线 ========
     car.Ctrl_WQ2812_brightness_ALL(0, 0, 120)
 
-    print(f"[小车] 向{side}侧移 {SIDE_OUT}s")
-    _strafe(side, SIDE_SPEED); time.sleep(SIDE_OUT); _stop()
+    # ① 右转90°，离开线
+    _spin(True, 0.55)
     if _chk(): return
 
-    print(f"[小车] 前进越过 {PASS_TIME}s")
-    car.Ctrl_Car(FWD_SPEED, 0, 0); time.sleep(PASS_TIME); _stop()
+    # ② 直行越过障碍物宽度
+    car.Ctrl_Car(15, 0, 0); time.sleep(0.60); _stop()
     if _chk(): return
 
-    # ======== 4. 传感器回线（看到黑线先降速，防止冲过） ========
-    print(f"[小车] 向{back_side}传感器回线...")
-    t0 = time.time(); stable = 0; saw = False; back = False
-    cur_side = RET_SIDE; cur_fwd = RET_FWD
+    # ③ 左转90°，沿障碍物侧面行进
+    _spin(False, 0.55)
+    if _chk(): return
 
-    while time.time() - t0 < RET_TO:
+    # ④ 直行越过障碍物长度
+    car.Ctrl_Car(15, 0, 0); time.sleep(0.80); _stop()
+    if _chk(): return
+
+    # ⑤ 左转90°，车头朝向原线方向
+    _spin(False, 0.55)
+    if _chk(): return
+
+    # ⑥ 直行找回黑线
+    print("[小车] 直行找回黑线...")
+    t0 = time.time()
+    while time.time() - t0 < 3.0:
         if _chk(): return
         line = _read_raw()
-        if _any_b(line):
-            if not saw:
-                cur_side = max(6, RET_SIDE // 2); cur_fwd = 0
-                print(f"[小车] 检测到黑线，降速 side={cur_side}")
-            saw = True
-        if _center(line):
-            stable += 1
-            if stable >= 2:
-                _stop(0.05); print("[小车] ✓ 已回线"); back = True; break
-        else:
-            stable = 0
-        _strafe_fwd(back_side, cur_side, cur_fwd)
-        time.sleep(DT)
-
-    if not back:
-        _stop(0.05)
-        print("[小车] 回线超时" + ("（擦过线）" if saw else "（未见线）"))
-
-    # ======== 5. 自动回正 ========
-    print("[小车] 自动回正...")
-    t0 = time.time(); stable = 0; saw = False
-
-    while time.time() - t0 < RC_TO:
-        if _chk(): return
-        line = _read_raw(); err = _err(line)
-        if err is None:
-            stable = 0; _strafe_fwd(back_side, RC_SIDE_MAX, 0); time.sleep(DT); continue
-        saw = True
-        lat = int(err * RC_SIDE_KP)
-        lat = max(-RC_SIDE_MAX, min(RC_SIDE_MAX, lat))
-        if abs(err) > RC_DZ and abs(lat) < RC_SIDE_MIN:
-            lat = (1 if err > 0 else -1) * RC_SIDE_MIN
-        turn = max(-RC_TURN_MAX, min(RC_TURN_MAX, int(err * RC_TURN_KP)))
-        if _center(line) and abs(err) <= RC_DZ:
-            stable += 1; car.Ctrl_Car(RC_FWD, 0, 0)
-            if stable >= 6: _stop(0.05); print("[小车] ✓ 回正完成"); break
-        else:
-            stable = 0; car.Ctrl_Car(RC_FWD, lat, turn)
-        time.sleep(DT)
+        if line is not None and (line[1] is True or line[2] is True):
+            _stop(0.05)
+            print("[小车] ✓ 找到黑线")
+            break
+        car.Ctrl_Car(12, 0, 0)
+        time.sleep(0.05)
     else:
         _stop(0.05)
-        print("[小车] 回正超时" + ("（已见线）" if saw else "（未见线）"))
-
-    # ======== 6. 低速贴线 ========
-    print(f"[小车] 贴线稳定 {ALIGN_T}s")
-    end = time.time() + ALIGN_T
-    while time.time() < end:
-        if _chk(): return
-        line = _read_raw()
-        if line:
-            b0, b1, b2, b3 = (_is_b(v) for v in line)
-            spd = max(12, speed // 2)   # 半速贴线
-            if b1 and b2:       car.Ctrl_Car(spd, 0, 0)
-            elif b1:            car.Ctrl_Car(spd, -9, -3)
-            elif b2:            car.Ctrl_Car(spd, 9, 3)
-            elif b0:            car.Ctrl_Car(max(10, spd - 4), -9, -6)
-            elif b3:            car.Ctrl_Car(max(10, spd - 4), 9, 6)
-            else:               car.Ctrl_Car(max(10, spd - 5), 0, 0)
-        else:
-            car.Ctrl_Car(max(12, speed // 2), 0, 0)
-        time.sleep(DT)
-    _stop(0.04)
+        print("[小车] 找线超时")
 
     _pid_reset()
+    car.Ctrl_Servo(1, 90)
     car.Ctrl_WQ2812_brightness_ALL(0, 120, 0)
     print("[小车] 绕障完成")
 
@@ -1003,7 +931,7 @@ _path_done = False     # 是否已到达终点
 # ==================== 主循迹线程 ====================
 def _run_line_follow(target: str, speed: int, path_nodes: list = None):
     global _line_follow_thread, _lf_integral, _lf_last_error, _trigger_avoidance
-    global _path_nodes, _path_index, _path_done
+    global _path_nodes, _path_index, _path_done, _last_ir_value
     _line_follow_stop.clear()
     _line_follow_pause.clear()
     _pid_reset()
@@ -1075,6 +1003,7 @@ def _run_line_follow(target: str, speed: int, path_nodes: list = None):
                 ir_danger = False
                 try:
                     ir_val = car.read_ir_obstacle()
+                    _last_ir_value = ir_val
                     ir_danger = 0 < ir_val < 0x50
                 except Exception:
                     pass
@@ -1225,7 +1154,7 @@ def api_line_follow():
     if err: return err
     payload = request.get_json(silent=True) or {}
     target = payload.get("target", "B")
-    speed = int(payload.get("speed", 40))
+    speed = int(payload.get("speed", 20))
     path_nodes = payload.get("path")  # ["S", "P1", "P3", "B"]，可为 None
     if _line_follow_thread and _line_follow_thread.is_alive():
         return jsonify({"success": False, "message": "已有循迹任务在运行"})
@@ -1238,6 +1167,7 @@ def api_line_follow():
         "target": target,
         "path": path_nodes or [target],
     })
+
 
 
 @app.post("/api/task/stop")
